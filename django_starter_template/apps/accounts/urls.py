@@ -1,0 +1,36 @@
+"""
+URLs for the accounts app
+"""
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from . import views
+
+app_name = 'accounts'
+
+# Create a router for ViewSets
+router = DefaultRouter()
+router.register(r'users', views.UserViewSet, basename='user')
+router.register(r'user-profiles', views.UserProfileViewSet, basename='user-profile')
+router.register(r'user-roles', views.UserRoleViewSet, basename='user-role')
+router.register(r'user-role-histories', views.UserRoleHistoryViewSet, basename='user-role-history')
+router.register(r'user-sessions', views.UserSessionViewSet, basename='user-session')
+router.register(r'login-attempts', views.LoginAttemptViewSet, basename='login-attempt')
+
+urlpatterns = [
+    # Include router URLs
+    path('', include(router.urls)),
+
+    # Authentication endpoints
+    path('auth/register/', views.CustomRegisterView.as_view(), name='custom-register'),
+    path('auth/login/', views.CustomLoginView.as_view(), name='custom-login'),
+
+    # User Management additional endpoints
+    path('users/<int:user_id>/approve/', views.UserViewSet.as_view({'post': 'approve'}), name='approve-user'),
+    path('users/<int:user_id>/change-role/', views.UserViewSet.as_view({'post': 'change_role'}), name='change-user-role'),
+
+    # User Statistics
+    path('statistics/', views.UserStatisticsView.as_view(), name='user-stats'),
+
+    # Permission Management
+    path('permissions/', views.PermissionListView.as_view(), name='permissions-list'),
+]
