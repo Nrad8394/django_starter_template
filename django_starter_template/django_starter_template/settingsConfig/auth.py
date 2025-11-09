@@ -75,6 +75,7 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
+    'apps.accounts.auth_backend.TrackingModelBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
@@ -178,7 +179,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Session Configuration
 SESSION_COOKIE_AGE = 3600  # 1 hour
 SESSION_SAVE_EVERY_REQUEST = True
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Changed to False to prevent logout on page navigation
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True

@@ -3,71 +3,7 @@ Custom middleware for tracking login attempts and security monitoring
 """
 from datetime import timedelta
 from django.utils import timezone
-from apps.accounts.models import LoginAttempt, UserSession
-
-
-class LoginAttemptMiddleware:
-    """
-    Middleware to track login attempts and enhance security
-    
-    This middleware captures login attempts from Django's authentication system
-    and logs them to the LoginAttempt model for security monitoring.
-    """
-    
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        # Process request and get response
-        response = self.get_response(request)
-        return response
-        
-    def process_view(self, request, view_func, view_args, view_kwargs):
-        """
-        Process each view to track login attempts
-        """
-        # Only process views that handle login
-        view_name = view_func.__name__ if hasattr(view_func, '__name__') else str(view_func)
-        if view_name not in ['login', 'obtain_auth_token', 'TokenObtainPairView', 'LoginView']:
-            return None
-            
-        # Only process POST requests (login attempts)
-        if request.method != 'POST':
-            return None
-            
-        # Extract email from request data
-        email = request.POST.get('email', request.POST.get('username', '')).lower()
-        if not email:
-            # Try to get from JSON data for API login attempts
-            try:
-                if hasattr(request, 'data'):
-                    email = request.data.get('email', request.data.get('username', '')).lower()
-            except (AttributeError, ValueError):
-                pass
-                
-        if not email:
-            return None
-            
-        # Get IP address with support for proxies
-        ip_address = self._get_client_ip(request)
-        user_agent = request.META.get('HTTP_USER_AGENT', '')
-        session_id = request.session.session_key if hasattr(request, 'session') else None
-        
-        # NOTE: Login attempt logging is now handled entirely by the authentication backend
-        # to avoid duplicate records. The backend logs both successful and failed attempts.
-        
-        return None
-        
-    def _get_client_ip(self, request):
-        """Get client IP address from request, handling proxy headers"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            # Get the first IP in case of multiple proxies
-            ip = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip = request.META.get('REMOTE_ADDR', '')
-        return ip
-
+from apps.accounts.models import  UserSession
 
 class SessionActivityMiddleware:
     """
@@ -112,8 +48,24 @@ class SessionActivityMiddleware:
             # Check if session has expired
             if session.is_expired:
                 session.revoke(reason='expired')
-                # Force user to login again
-                request.session.flush()
+                # Don't flush the session immediately - let it expire naturally
+                # The session will be invalid on the next request anyway
+                # request.session.flush()
+                
+            # Populate device_info if not set
+            if not session.device_info:
+                from .services import DeviceDetectionService
+                user_agent = request.META.get('HTTP_USER_AGENT', '')
+                session.device_info = DeviceDetectionService.parse_user_agent(user_agent)
+                session.save(update_fields=['device_info'])
+                
+            # Populate location_info if not set
+            if not session.location_info:
+                from apps.core.utils import get_client_ip
+                from .services import GeoIPService
+                ip_address = get_client_ip(request)
+                session.location_info = GeoIPService.get_location_info(ip_address)
+                session.save(update_fields=['location_info'])
                 
             # Update last activity timestamp (but not too frequently)
             # Only update if last update was more than 5 minutes ago
@@ -125,12 +77,30 @@ class SessionActivityMiddleware:
             # Session exists in cookie but not in our tracking table
             # This could be a security issue or just old data
             if request.user.is_authenticated:
-                # Create session record if authenticated user
-                UserSession.create_session(
-                    user=request.user,
-                    request=request,
-                    created_via='middleware_recovery'
-                )
+                try:
+                    # Check if there's an existing inactive session with this session_key
+                    existing_session = UserSession.objects.filter(
+                        session_key=request.session.session_key,
+                        is_active=False
+                    ).first()
+                    
+                    if existing_session:
+                        # Reactivate the existing session
+                        existing_session.is_active = True
+                        existing_session.expires_at = timezone.now() + timedelta(days=7)
+                        existing_session.save(update_fields=['is_active', 'expires_at'])
+                    else:
+                        # Create new session record if authenticated user
+                        UserSession.create_session(
+                            user=request.user,
+                            request=request,
+                            created_via='middleware_recovery'
+                        )
+                except Exception as e:
+                    # Log the error but don't fail the request
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to create/reactivate session record for user {request.user}: {e}")
     
     def process_response(self, request, response):
         """Process response before returning to client"""
@@ -145,18 +115,19 @@ class LoginSecurityMiddleware:
     1. Checks for account lockouts before login
     2. Enforces password change requirements
     3. Records login IP addresses
+    4. Tracks login attempts
     """
     
     def __init__(self, get_response):
         self.get_response = get_response
         
     def __call__(self, request):
-        # Skip middleware for non-authenticated requests except login page
-        is_login = request.path.endswith('/login/') and request.method == 'POST'
+        # Check if this is a login attempt
+        is_login_attempt = self._is_login_attempt(request)
         
-        if is_login:
-            # Extract email from login form to check account status
-            email = request.POST.get('username', '').strip().lower()
+        if is_login_attempt:
+            # Extract email from request to check account status
+            email = self._extract_email_from_request(request)
             if email:
                 from .models import User
                 try:
@@ -173,11 +144,105 @@ class LoginSecurityMiddleware:
         # Process the request
         response = self.get_response(request)
         
-        # If login was successful, update user's IP
-        if is_login and request.user.is_authenticated:
-            # Update the last login IP
-            request.user.last_login_ip = request.META.get('REMOTE_ADDR', '')
-            request.user.save(update_fields=['last_login_ip'])
+        # Track login attempt result
+        if is_login_attempt:
+            self._track_login_attempt(request, response)
+            
+        return response
+    
+    def _is_login_attempt(self, request):
+        """Check if the current request is a login attempt"""
+        # Traditional Django admin login
+        if request.path.endswith('/login/') and request.method == 'POST':
+            return True
+            
+        # REST API login endpoints
+        if '/auth/login/' in request.path and request.method == 'POST':
+            return True
+            
+        # dj-rest-auth login (if used)
+        if '/rest-auth/login' in request.path and request.method == 'POST':
+            return True
+            
+        return False
+    
+    def _extract_email_from_request(self, request):
+        """Extract email from login request"""
+        # Try different field names used by different login forms
+        email = None
+        
+        # Traditional Django form
+        if hasattr(request, 'POST') and request.POST:
+            email = request.POST.get('username') or request.POST.get('email')
+            
+        # REST API request
+        if hasattr(request, 'data') and request.data:
+            email = request.data.get('email') or request.data.get('username')
+            
+        # JSON request body
+        if not email and request.META.get('CONTENT_TYPE', '').startswith('application/json'):
+            try:
+                import json
+                body = request.body.decode('utf-8')
+                data = json.loads(body)
+                email = data.get('email') or data.get('username')
+            except:
+                pass
+                
+        return email.strip().lower() if email else None
+    
+    def _track_login_attempt(self, request, response):
+        """Track the result of a login attempt"""
+        from apps.core.utils import get_client_ip
+        from .models import LoginAttempt, User
+        from .services import AuthenticationService
+        
+        ip_address = get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        email = self._extract_email_from_request(request)
+        
+        # Determine if login was successful
+        success = request.user.is_authenticated and response.status_code in [200, 201]
+        
+        try:
+            # Find user if successful
+            user = None
+            if success:
+                user = request.user
+            elif email:
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    pass
+            
+            # Create login attempt record
+            LoginAttempt.objects.create(
+                email=email or '',
+                user=user,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=success,
+                failure_reason='invalid_credentials' if not success else ''
+            )
+            
+            if success:
+                # Handle successful login
+                AuthenticationService.handle_successful_login(user, ip_address)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Login successful for {user.email} from {ip_address}")
+            else:
+                # Handle failed login
+                if user:
+                    AuthenticationService.handle_failed_login(user, ip_address)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Login failed for {email} from {ip_address}")
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error tracking login attempt: {str(e)}")
             
             # Create session tracking record
             from apps.core.utils import get_client_ip

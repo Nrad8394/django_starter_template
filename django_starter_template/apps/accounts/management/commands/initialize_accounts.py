@@ -124,6 +124,7 @@ class Command(BaseCommand):
             role, created = UserRole.objects.get_or_create(
                 name=role_name,
                 defaults={
+                    'display_name': role_data.get('display_name', role_name.title()),
                     'description': role_data['description'],
                     'is_active': True
                 }

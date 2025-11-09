@@ -14,6 +14,7 @@ from dj_rest_auth.serializers import LoginSerializer, PasswordChangeSerializer, 
 from drf_spectacular.utils import extend_schema_field
 from .models import User, UserProfile, UserRole, UserRoleHistory, UserSession, LoginAttempt
 from .services import UserService, RoleService
+from django.conf import settings
 
 
 class PermissionSerializer(serializers.ModelSerializer):
@@ -512,12 +513,13 @@ class CustomRegisterSerializer(RegisterSerializer):
     def validate_email(self, email):
         """Custom email validation to provide better error messages"""
         email = super().validate_email(email)
-        
-        # Check for protected system emails
-        if email == 'anonymous@agex.system':
-            raise serializers.ValidationError(
-                "This email address is reserved for system use and cannot be registered."
-            )
+        site_name = settings.SITE_NAME
+        if site_name:
+            # Check for protected system emails
+            if email == f'anonymous@{site_name}.system':
+                raise serializers.ValidationError(
+                    "This email address is reserved for system use and cannot be registered."
+                )
         
         # Check if email already exists
         if User.objects.filter(email=email).exists():
@@ -839,6 +841,7 @@ class UserSessionSerializer(serializers.ModelSerializer):
     user_full_name = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
+    is_current_session = serializers.SerializerMethodField()
     ip_address = serializers.CharField(read_only=True)
     
     class Meta:
@@ -846,7 +849,7 @@ class UserSessionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_email', 'user_full_name', 'session_key', 'ip_address',
             'user_agent', 'is_active', 'expires_at', 'device_type', 'device_os',
-            'browser', 'location_info', 'last_activity', 'is_expired', 'risk_score', 'created_at', 'updated_at'
+            'browser', 'location_info', 'device_info', 'last_activity', 'is_expired', 'is_current_session', 'risk_score', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
@@ -855,11 +858,18 @@ class UserSessionSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.CharField)
     def get_is_expired(self, obj) -> bool:
-        return obj.is_expired
+        return obj.is_expired()
 
     @extend_schema_field(serializers.FloatField)
     def get_risk_score(self, obj) -> float:
         return obj.risk_score
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_current_session(self, obj) -> bool:
+        request = self.context.get('request')
+        if request and hasattr(request, 'session'):
+            return obj.session_key == request.session.session_key
+        return False
 class LoginAttemptSerializer(serializers.ModelSerializer):
     """Serializer for login attempt tracking"""
     user_email = serializers.CharField(source='user.email', read_only=True)
@@ -888,3 +898,54 @@ class PermissionDetailSerializer(serializers.ModelSerializer):
             'id', 'name', 'codename', 'app_label', 'model', 'content_type_name'
         ]
         read_only_fields = ['id']
+
+
+# Two-Factor Authentication Serializers
+class TwoFactorSetupSerializer(serializers.Serializer):
+    """Serializer for 2FA setup response"""
+    device_id = serializers.IntegerField(read_only=True)
+    provisioning_uri = serializers.CharField(read_only=True)
+    qr_code = serializers.CharField(read_only=True)
+    secret = serializers.CharField(read_only=True)
+
+
+class TwoFactorVerifySerializer(serializers.Serializer):
+    """Serializer for 2FA verification during setup"""
+    token = serializers.CharField(max_length=6, min_length=6, required=True)
+
+    def validate_token(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Token must contain only digits")
+        return value
+
+
+class TwoFactorVerifyLoginSerializer(serializers.Serializer):
+    """Serializer for 2FA verification during login"""
+    token = serializers.CharField(max_length=6, min_length=6, required=True)
+    backup_code = serializers.CharField(max_length=8, min_length=8, required=False)
+
+    def validate_token(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Token must contain only digits")
+        return value
+
+    def validate_backup_code(self, value):
+        if value and not value.replace('-', '').isalnum():
+            raise serializers.ValidationError("Backup code format is invalid")
+        return value
+
+
+class TwoFactorStatusSerializer(serializers.Serializer):
+    """Serializer for 2FA status response"""
+    enabled = serializers.BooleanField(read_only=True)
+    confirmed = serializers.BooleanField(read_only=True)
+    backup_codes_count = serializers.IntegerField(read_only=True)
+    device_name = serializers.CharField(read_only=True)
+
+
+class TwoFactorBackupCodesSerializer(serializers.Serializer):
+    """Serializer for backup codes response"""
+    backup_codes = serializers.ListField(
+        child=serializers.CharField(max_length=8),
+        read_only=True
+    )

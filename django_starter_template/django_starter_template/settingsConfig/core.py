@@ -1,5 +1,5 @@
 """
-Core Django settings for AGEX Application
+Core Django settings for Application
 ==========================================
 
 This module contains the fundamental Django configuration including:
@@ -60,13 +60,14 @@ THIRD_PARTY_APPS = [
     'django_redis',
     'django_celery_beat',  # Database-backed Celery scheduler
     'storages',  # Django-storages for MinIO/S3 support
+    'django_otp',  # Two-factor authentication
 ]
 
 LOCAL_APPS = [
     'apps.core.apps.CoreConfig',
     'apps.accounts.apps.AccountsConfig',
     'apps.security.apps.SecurityConfig',
-
+    'apps.notifications.apps.NotificationsConfig',
 ]
 
 
@@ -81,7 +82,6 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'apps.core.middleware.APICSRFMiddleware',  # Custom CSRF middleware for API
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'apps.accounts.middleware.LoginAttemptMiddleware',  # Track login attempts
     'apps.accounts.middleware.LoginSecurityMiddleware',  # Login security enforcement
     'apps.accounts.middleware.SessionActivityMiddleware',  # Track session activity
     'apps.security.middleware.RateLimitMiddleware',  # Rate limiting

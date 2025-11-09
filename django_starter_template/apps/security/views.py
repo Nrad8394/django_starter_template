@@ -17,6 +17,7 @@ from .permissions import (
     IsSecurityAdmin, CanViewAuditLogs, CanManageSecurityEvents,
     CanManageSecuritySettings, CanManageAPIKeys, IsOwnerOrSecurityAdmin
 )
+from apps.accounts.models import User, UserSession, LoginAttempt
 
 
 @extend_schema(
@@ -198,39 +199,175 @@ class APIKeyViewSet(viewsets.ModelViewSet):
 @extend_schema(
     tags=["Security"],
     summary="Get security dashboard",
-    description="Returns security dashboard data including audit logs, security events, and rate limiting statistics.",
+    description="Returns comprehensive security dashboard data including audit logs, security events, rate limiting, 2FA statistics, session data, and threat intelligence.",
     responses={200: SecurityDashboardSerializer}
 )
 @api_view(['GET'])
 @permission_classes([IsSecurityAdmin])
 def security_dashboard(request):
-    """Get security dashboard data"""
+    """Get comprehensive security dashboard data"""
 
-    # Calculate metrics
+    # Time periods
     now = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     last_24h = now - timedelta(hours=24)
+    last_7d = now - timedelta(days=7)
+    last_30d = now - timedelta(days=30)
 
+    # Basic security metrics
     data = {
         'total_audit_logs': AuditLog.objects.count(),
-        'critical_events': SecurityEvent.objects.filter(
+        'audit_logs_today': AuditLog.objects.filter(timestamp__gte=today_start).count(),
+        'audit_logs_24h': AuditLog.objects.filter(timestamp__gte=last_24h).count(),
+        'audit_logs_7d': AuditLog.objects.filter(timestamp__gte=last_7d).count(),
+    }
+
+    # Security events analysis
+    security_events = SecurityEvent.objects.all()
+    data.update({
+        'total_security_events': security_events.count(),
+        'active_security_events': security_events.filter(status=SecurityEvent.Status.ACTIVE).count(),
+        'critical_events': security_events.filter(
             severity=AuditLog.Severity.CRITICAL,
             status=SecurityEvent.Status.ACTIVE
         ).count(),
-        'active_rate_limits': RateLimit.objects.filter(
-            is_blocked=True,
-            blocked_until__gt=now
+        'high_severity_events': security_events.filter(
+            severity=AuditLog.Severity.HIGH,
+            status=SecurityEvent.Status.ACTIVE
         ).count(),
+        'resolved_events_24h': security_events.filter(
+            status=SecurityEvent.Status.RESOLVED,
+            updated_at__gte=last_24h
+        ).count(),
+    })
+
+    # Rate limiting statistics
+    rate_limits = RateLimit.objects.filter(window_end__gt=now)
+    data.update({
+        'active_rate_limits': rate_limits.filter(is_blocked=True).count(),
+        'total_rate_limit_entries': rate_limits.count(),
+        'blocked_ips': rate_limits.filter(
+            limit_type=RateLimit.LimitType.IP,
+            is_blocked=True
+        ).values('identifier').distinct().count(),
+        'blocked_users': rate_limits.filter(
+            limit_type=RateLimit.LimitType.USER,
+            is_blocked=True
+        ).values('identifier').distinct().count(),
+    })
+
+    # User and authentication statistics
+    users = User.objects.all()
+    data.update({
+        'total_users': users.count(),
+        'active_users': users.filter(is_active=True).count(),
+        'users_with_2fa': users.filter(otp_device__isnull=False).count(),
+        'locked_accounts': users.filter(account_locked_until__gt=now).count(),
+        'users_with_failed_attempts': users.filter(failed_login_attempts__gt=0).count(),
+    })
+
+    # Session statistics
+    sessions = UserSession.objects.all()
+    data.update({
+        'total_sessions': sessions.count(),
+        'active_sessions': sessions.filter(is_active=True).count(),
+        'expired_sessions': sessions.filter(is_expired=True).count(),
+        'high_risk_sessions': sessions.filter(risk_score__gte=70).count(),
+        'sessions_with_device_info': sessions.filter(device_info__isnull=False).count(),
+    })
+
+    # Login attempt analysis
+    login_attempts = LoginAttempt.objects.all()
+    data.update({
+        'total_login_attempts': login_attempts.count(),
+        'failed_login_attempts_24h': login_attempts.filter(
+            success=False,
+            created_at__gte=last_24h
+        ).count(),
+        'successful_login_attempts_24h': login_attempts.filter(
+            success=True,
+            created_at__gte=last_24h
+        ).count(),
+        'login_attempts_today': login_attempts.filter(created_at__gte=today_start).count(),
+    })
+
+    # API key statistics
+    api_keys = APIKey.objects.all()
+    data.update({
+        'total_api_keys': api_keys.count(),
+        'active_api_keys': api_keys.filter(is_active=True).count(),
+        'api_keys_used_today': api_keys.filter(last_used_at__gte=today_start).count(),
+    })
+
+    # Recent activity (last 10 items each)
+    data.update({
         'recent_security_events': SecurityEventSerializer(
-            SecurityEvent.objects.filter(created_at__gte=last_24h)[:10],
+            security_events.filter(created_at__gte=last_24h).order_by('-created_at')[:10],
             many=True
         ).data,
-        'audit_logs_today': AuditLog.objects.filter(timestamp__gte=today_start).count(),
-        'blocked_ips': RateLimit.objects.filter(
-            limit_type=RateLimit.LimitType.IP,
-            is_blocked=True,
-            blocked_until__gt=now
-        ).values('identifier').distinct().count()
+        'recent_audit_logs': AuditLogSerializer(
+            AuditLog.objects.filter(timestamp__gte=last_24h).order_by('-timestamp')[:10],
+            many=True
+        ).data,
+        'recent_failed_logins': list(
+            LoginAttempt.objects.filter(
+                success=False,
+                created_at__gte=last_24h
+            ).values('email', 'failure_reason', 'created_at').order_by('-created_at')[:10]
+        ),
+    })
+
+    # Geographic threat analysis (if location_info exists)
+    audit_logs_with_location = AuditLog.objects.filter(
+        timestamp__gte=last_7d
+    ).exclude(location_info__isnull=True)
+
+    if audit_logs_with_location.exists():
+        # Get top countries by suspicious activity
+        suspicious_countries = audit_logs_with_location.filter(
+            event_type__in=[
+                AuditLog.EventType.FAILED_LOGIN,
+                AuditLog.EventType.SECURITY_VIOLATION,
+                AuditLog.EventType.UNAUTHORIZED_ACCESS
+            ]
+        ).values('location_info').annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]
+
+        data['top_suspicious_countries'] = list(suspicious_countries)
+
+    # Security health score (0-100, higher is better)
+    health_score = 100
+
+    # Deduct points for various security issues
+    if data['critical_events'] > 0:
+        health_score -= min(data['critical_events'] * 10, 30)
+    if data['active_rate_limits'] > 10:
+        health_score -= min((data['active_rate_limits'] - 10) * 2, 20)
+    if data['locked_accounts'] > 5:
+        health_score -= min((data['locked_accounts'] - 5) * 3, 15)
+    if data['high_risk_sessions'] > 20:
+        health_score -= min((data['high_risk_sessions'] - 20) * 1, 15)
+    if data['failed_login_attempts_24h'] > 50:
+        health_score -= min((data['failed_login_attempts_24h'] - 50) // 10, 20)
+
+    data['security_health_score'] = max(0, health_score)
+
+    # Security trends (comparing last 7 days vs previous 7 days)
+    prev_7d_start = last_7d - timedelta(days=7)
+    prev_7d_end = last_7d
+
+    prev_failed_logins = LoginAttempt.objects.filter(
+        success=False,
+        created_at__range=(prev_7d_start, prev_7d_end)
+    ).count()
+
+    current_failed_logins = data['failed_login_attempts_24h'] * 7  # Approximate for 7 days
+
+    data['failed_login_trend'] = {
+        'previous_7d': prev_failed_logins,
+        'current_7d': current_failed_logins,
+        'change_percent': ((current_failed_logins - prev_failed_logins) / max(prev_failed_logins, 1)) * 100
     }
 
     serializer = SecurityDashboardSerializer(data=data)

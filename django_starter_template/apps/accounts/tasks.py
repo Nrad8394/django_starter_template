@@ -148,3 +148,56 @@ def send_account_notification(self, user_id, notification_type, custom_message=N
     except Exception as exc:
         logger.error(f"Failed to send account notification to user {user_id}: {str(exc)}")
         raise self.retry(exc=exc, countdown=60)
+
+
+@shared_task
+def cleanup_expired_sessions():
+    """Clean up expired user sessions"""
+    from .models import UserSession
+    
+    now = timezone.now()
+    
+    # Mark expired sessions as inactive
+    expired_sessions = UserSession.objects.filter(
+        is_active=True,
+        expires_at__lt=now
+    )
+    
+    expired_count = expired_sessions.update(is_active=False)
+    
+    # Delete old inactive sessions (older than 30 days)
+    old_sessions_cutoff = now - timezone.timedelta(days=30)
+    deleted_count = UserSession.objects.filter(
+        is_active=False,
+        updated_at__lt=old_sessions_cutoff
+    ).delete()[0]
+    
+    logger.info(f"Cleaned up {expired_count} expired sessions and deleted {deleted_count} old sessions")
+    return expired_count, deleted_count
+
+
+@shared_task
+def cleanup_expired_rate_limits():
+    """Clean up expired rate limit records"""
+    from apps.security.models import RateLimit
+    
+    now = timezone.now()
+    
+    # Remove old rate limit records that are no longer blocked
+    old_records = RateLimit.objects.filter(
+        is_blocked=False,
+        window_end__lt=now - timezone.timedelta(hours=24)
+    )
+    
+    deleted_count = old_records.delete()[0]
+    
+    # Unblock expired blocks
+    expired_blocks = RateLimit.objects.filter(
+        is_blocked=True,
+        blocked_until__lt=now
+    )
+    
+    unblocked_count = expired_blocks.update(is_blocked=False, blocked_until=None)
+    
+    logger.info(f"Cleaned up {deleted_count} old rate limit records and unblocked {unblocked_count} expired blocks")
+    return deleted_count, unblocked_count

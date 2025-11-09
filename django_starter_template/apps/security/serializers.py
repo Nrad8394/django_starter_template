@@ -114,11 +114,66 @@ class APIKeyCreateSerializer(serializers.ModelSerializer):
 
 
 class SecurityDashboardSerializer(serializers.Serializer):
-    """Serializer for security dashboard data"""
+    """Serializer for comprehensive security dashboard data"""
 
+    # Audit log metrics
     total_audit_logs = serializers.IntegerField()
-    critical_events = serializers.IntegerField()
-    active_rate_limits = serializers.IntegerField()
-    recent_security_events = SecurityEventSerializer(many=True)
     audit_logs_today = serializers.IntegerField()
+    audit_logs_24h = serializers.IntegerField()
+    audit_logs_7d = serializers.IntegerField()
+
+    # Security events
+    total_security_events = serializers.IntegerField()
+    active_security_events = serializers.IntegerField()
+    critical_events = serializers.IntegerField()
+    high_severity_events = serializers.IntegerField()
+    resolved_events_24h = serializers.IntegerField()
+
+    # Rate limiting
+    active_rate_limits = serializers.IntegerField()
+    total_rate_limit_entries = serializers.IntegerField()
     blocked_ips = serializers.IntegerField()
+    blocked_users = serializers.IntegerField()
+
+    # User statistics
+    total_users = serializers.IntegerField()
+    active_users = serializers.IntegerField()
+    users_with_2fa = serializers.IntegerField()
+    locked_accounts = serializers.IntegerField()
+    users_with_failed_attempts = serializers.IntegerField()
+
+    # Session statistics
+    total_sessions = serializers.IntegerField()
+    active_sessions = serializers.IntegerField()
+    expired_sessions = serializers.IntegerField()
+    high_risk_sessions = serializers.IntegerField()
+    sessions_with_device_info = serializers.IntegerField()
+
+    # Login attempts
+    total_login_attempts = serializers.IntegerField()
+    failed_login_attempts_24h = serializers.IntegerField()
+    successful_login_attempts_24h = serializers.IntegerField()
+    login_attempts_today = serializers.IntegerField()
+
+    # API keys
+    total_api_keys = serializers.IntegerField()
+    active_api_keys = serializers.IntegerField()
+    api_keys_used_today = serializers.IntegerField()
+
+    # Recent activity
+    recent_security_events = SecurityEventSerializer(many=True)
+    recent_audit_logs = AuditLogSerializer(many=True)
+    recent_failed_logins = serializers.ListField(child=serializers.DictField())
+
+    # Geographic analysis
+    top_suspicious_countries = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=True
+    )
+
+    # Security health
+    security_health_score = serializers.IntegerField()
+
+    # Trends
+    failed_login_trend = serializers.DictField()

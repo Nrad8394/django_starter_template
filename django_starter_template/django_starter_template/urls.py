@@ -32,6 +32,7 @@ urlpatterns = [
         path('core/', include('apps.core.urls')),
         path('accounts/', include('apps.accounts.urls')),
         path('security/', include('apps.security.urls')),
+        path('notifications/', include('apps.notifications.urls')),
     ])),
 
         # API Documentation

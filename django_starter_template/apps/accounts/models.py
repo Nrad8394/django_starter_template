@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from apps.core.models import TimestampedModel, AuditMixin, SoftDeleteMixin, BaseModel
+from django_otp.plugins.otp_totp.models import TOTPDevice
 import uuid
 
 
@@ -134,9 +135,20 @@ class User(AbstractUser, BaseModel):
         help_text=_("When the password was last changed")
     )
 
-    """ timestamp fields"""
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # Two-factor authentication
+    otp_device = models.OneToOneField(
+        TOTPDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='custom_user',
+        help_text=_("TOTP device for two-factor authentication")
+    )
+    backup_codes = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=_("Backup codes for 2FA recovery")
+    )
 
     # Override required fields
     USERNAME_FIELD = 'email'
@@ -193,9 +205,11 @@ class User(AbstractUser, BaseModel):
         if hasattr(self.role, 'name') and self.role.name == 'super_admin':
             # Super admin has all permissions
             from django.contrib.auth.models import Permission
-            return set(Permission.objects.values_list('codename', flat=True))
+            return set(f"{perm['content_type__app_label']}.{perm['codename']}" 
+                      for perm in Permission.objects.values('content_type__app_label', 'codename'))
 
-        return set(self.role.permissions.values_list('codename', flat=True))
+        return set(f"{perm['content_type__app_label']}.{perm['codename']}" 
+                  for perm in self.role.permissions.values('content_type__app_label', 'codename'))
 
     def is_account_locked(self):
         """Check if account is currently locked"""
@@ -223,6 +237,54 @@ class User(AbstractUser, BaseModel):
             self.account_locked_until = timezone.now() + timezone.timedelta(minutes=15)
 
         self.save(update_fields=['failed_login_attempts', 'account_locked_until'])
+
+    # Two-factor authentication methods
+    def is_otp_enabled(self):
+        """Check if user has 2FA enabled"""
+        return self.otp_device is not None
+
+    def enable_otp(self, device_name="default"):
+        """Enable 2FA for the user"""
+        if self.otp_device:
+            return self.otp_device
+
+        device = TOTPDevice.objects.create(
+            user=self,
+            name=device_name,
+            confirmed=False
+        )
+        self.otp_device = device
+        self.save(update_fields=['otp_device'])
+        return device
+
+    def disable_otp(self):
+        """Disable 2FA for the user"""
+        if self.otp_device:
+            self.otp_device.delete()
+            self.otp_device = None
+            self.backup_codes = None
+            self.save(update_fields=['otp_device', 'backup_codes'])
+
+    def generate_backup_codes(self, count=10):
+        """Generate backup codes for 2FA recovery"""
+        import secrets
+        codes = [secrets.token_hex(4).upper() for _ in range(count)]
+        self.backup_codes = codes
+        self.save(update_fields=['backup_codes'])
+        return codes
+
+    def verify_backup_code(self, code):
+        """Verify and consume a backup code"""
+        if not self.backup_codes or code not in self.backup_codes:
+            return False
+
+        self.backup_codes.remove(code)
+        self.save(update_fields=['backup_codes'])
+        return True
+
+    def get_backup_codes_count(self):
+        """Get the number of remaining backup codes"""
+        return len(self.backup_codes) if self.backup_codes else 0
 
 
 class UserProfile(TimestampedModel, AuditMixin, SoftDeleteMixin):
@@ -397,6 +459,15 @@ class UserSession(TimestampedModel, AuditMixin):
         blank=True,
         help_text=_("Geographic location information")
     )
+    device_info = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=_("Parsed device information from user agent")
+    )
+    risk_score = models.IntegerField(
+        default=0,
+        help_text=_("Risk score for this session (0-100)")
+    )
 
     is_active = models.BooleanField(
         default=True,
@@ -428,7 +499,10 @@ class UserSession(TimestampedModel, AuditMixin):
 
     def is_expired(self):
         """Check if session has expired"""
-        return timezone.now() > self.expires_at
+        # Ensure both times are in UTC for comparison
+        now_utc = timezone.now().astimezone(timezone.utc)
+        expires_utc = self.expires_at.astimezone(timezone.utc) if self.expires_at.tzinfo else timezone.utc.localize(self.expires_at)
+        return now_utc > expires_utc
 
     def update_activity(self):
         """Update last activity timestamp"""
@@ -457,18 +531,108 @@ class UserSession(TimestampedModel, AuditMixin):
             created_via: How this session was created (login, middleware_recovery, etc.)
         """
         from apps.core.utils import get_client_ip
+        from .services import DeviceDetectionService, GeoIPService
         
         session_key = request.session.session_key
         ip_address = get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')
+        device_info = DeviceDetectionService.parse_user_agent(user_agent)
+        location_info = GeoIPService.get_location_info(ip_address)
         
-        return cls.objects.create(
-            user=user,
-            session_key=session_key,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            expires_at=timezone.now() + timedelta(days=7)  # 7 days
-        )
+        # Check if session already exists (active or inactive)
+        existing_session = cls.objects.filter(session_key=session_key).first()
+        if existing_session:
+            # Update existing session instead of creating new one
+            existing_session.user = user
+            existing_session.ip_address = ip_address
+            existing_session.user_agent = user_agent
+            existing_session.device_info = device_info
+            existing_session.location_info = location_info
+            existing_session.is_active = True
+            existing_session.expires_at = timezone.now() + timedelta(days=7)  # 7 days
+            existing_session.save()
+            session = existing_session
+        else:
+            # Create new session
+            session = cls.objects.create(
+                user=user,
+                session_key=session_key,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                device_info=device_info,
+                location_info=location_info,
+                expires_at=timezone.now() + timedelta(days=7)  # 7 days
+            )
+        
+        # Calculate and set risk score
+        session.risk_score = session.calculate_risk_score()
+        session.save(update_fields=['risk_score'])
+        
+        return session
+
+    def calculate_risk_score(self):
+        """
+        Calculate a risk score for this session based on various factors
+        
+        Returns an integer score from 0-100 where higher scores indicate higher risk
+        """
+        score = 0
+        
+        # Factor 1: New device (30 points)
+        if self.device_info:
+            user_sessions = UserSession.objects.filter(
+                user=self.user,
+                device_info__isnull=False
+            ).exclude(id=self.id)
+            
+            device_known = any(
+                session.device_info.get('device_brand') == self.device_info.get('device_brand') and
+                session.device_info.get('device_model') == self.device_info.get('device_model')
+                for session in user_sessions if session.device_info
+            )
+            
+            if not device_known:
+                score += 30
+        
+        # Factor 2: New location (25 points)
+        if self.location_info:
+            user_sessions = UserSession.objects.filter(
+                user=self.user,
+                location_info__isnull=False
+            ).exclude(id=self.id)
+            
+            location_known = any(
+                session.location_info.get('country_code') == self.location_info.get('country_code') and
+                session.location_info.get('city') == self.location_info.get('city')
+                for session in user_sessions if session.location_info
+            )
+            
+            if not location_known:
+                score += 25
+        
+        # Factor 3: Unusual login time (15 points)
+        # Consider login between 2 AM and 6 AM as higher risk
+        login_hour = self.created_at.hour
+        if 2 <= login_hour <= 6:
+            score += 15
+        
+        # Factor 4: Bot-like user agent (20 points)
+        if self.device_info and self.device_info.get('is_bot'):
+            score += 20
+        
+        # Factor 5: Multiple failed login attempts recently (10 points)
+        from .models import LoginAttempt
+        recent_failures = LoginAttempt.objects.filter(
+            email=self.user.email,
+            success=False,
+            created_at__gte=timezone.now() - timedelta(hours=24)
+        ).count()
+        
+        if recent_failures > 3:
+            score += 10
+        
+        # Ensure score doesn't exceed 100
+        return min(score, 100)
 
     @classmethod
     def detect_suspicious_sessions(cls, user, request):
@@ -512,6 +676,35 @@ class UserSession(TimestampedModel, AuditMixin):
         
         # Remove duplicates
         return list(set(suspicious_sessions))
+
+    @property
+    def risk_score(self):
+        """
+        Calculate a risk score for this session based on various factors.
+        Returns a float between 0.0 (low risk) and 1.0 (high risk).
+        """
+        score = 0.0
+        
+        # Check if session is expired
+        if self.is_expired:
+            score += 0.3
+        
+        # Check if session is inactive
+        if not self.is_active:
+            score += 0.2
+        
+        # Check for suspicious location (simplified)
+        # In production, you'd compare with user's known locations
+        if self.location_info:
+            score += 0.1  # Slightly suspicious if we have location data
+        
+        # Check device/browser consistency
+        # This is a basic check - in production you'd have more sophisticated logic
+        if not self.device_type or not self.browser:
+            score += 0.1
+        
+        # Cap at 1.0
+        return min(score, 1.0)
 
 
 class LoginAttempt(TimestampedModel):

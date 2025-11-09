@@ -30,6 +30,7 @@ class UserRoleConstants:
 ROLE_DEFINITIONS = {
     UserRoleConstants.STAFF: {
         'description': _('Basic staff member with limited access'),
+        'display_name': _('Staff'),
         'permissions': [
             'view_user',
             'view_userprofile',
@@ -37,6 +38,7 @@ ROLE_DEFINITIONS = {
     },
     UserRoleConstants.MANAGER: {
         'description': _('Manager with additional permissions to manage team members'),
+        'display_name': _('Manager'),
         'permissions': [
             'view_user',
             'change_user',
@@ -47,6 +49,7 @@ ROLE_DEFINITIONS = {
     },
     UserRoleConstants.ADMIN: {
         'description': _('Administrator with full access to user management'),
+        'display_name': _('Admin'),
         'permissions': [
             'view_user',
             'add_user',
@@ -64,6 +67,7 @@ ROLE_DEFINITIONS = {
     },
     UserRoleConstants.SUPER_ADMIN: {
         'description': _('Super administrator with all permissions'),
+        'display_name': _('Super Admin'),
         'permissions': []  # Super admin gets all permissions automatically
     }
 }

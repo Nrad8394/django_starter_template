@@ -1,5 +1,5 @@
 """
-Celery configuration file for the AGEX Application
+Celery configuration file for the  Application
 ---------------------------------------------------
 This module sets up a robust Celery instance integrated with Django settings.
 It supports distributed task queues with Redis, provides safe worker behavior,
@@ -24,7 +24,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # -------------------------------------------------------------------
 # 2. Celery App Definition
 # -------------------------------------------------------------------
-app = Celery('agex')
+app = Celery('django_starter_template')
 
 # Load configuration from Django settings with CELERY_ namespace
 app.config_from_object('django.conf:settings', namespace='CELERY')

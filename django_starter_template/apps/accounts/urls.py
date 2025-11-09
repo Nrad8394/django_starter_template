@@ -29,4 +29,12 @@ urlpatterns = [
 
     # Permission Management
     path('permissions/', views.PermissionListView.as_view(), name='permissions-list'),
+
+    # Two-Factor Authentication
+    path('2fa/setup/', views.TwoFactorSetupView.as_view(), name='2fa-setup'),
+    path('2fa/verify-setup/', views.TwoFactorVerifySetupView.as_view(), name='2fa-verify-setup'),
+    path('2fa/verify-login/', views.TwoFactorVerifyLoginView.as_view(), name='2fa-verify-login'),
+    path('2fa/disable/', views.TwoFactorDisableView.as_view(), name='2fa-disable'),
+    path('2fa/regenerate-backup-codes/', views.TwoFactorRegenerateBackupCodesView.as_view(), name='2fa-regenerate-backup-codes'),
+    path('2fa/status/', views.TwoFactorStatusView.as_view(), name='2fa-status'),
 ]

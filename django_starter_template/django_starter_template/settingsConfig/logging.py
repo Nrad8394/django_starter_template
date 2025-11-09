@@ -1,5 +1,5 @@
 """
-Logging Configuration for AGEX Application
+Logging Configuration for the Application
 ==========================================
 
 This module contains comprehensive logging configurations including:

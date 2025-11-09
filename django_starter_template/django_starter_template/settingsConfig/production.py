@@ -49,9 +49,9 @@ CSRF_TRUSTED_ORIGINS = config(
 )
 
 # Logging for production
-LOGGING['handlers']['django_file']['filename'] = '/app/agex/logs/django.log'
+LOGGING['handlers']['django_file']['filename'] = '/app/logs/django.log'
 LOGGING['handlers']['django_file']['formatter'] = 'json'
-LOGGING['handlers']['celery_file']['filename'] = '/app/agex/logs/celery.log'
+LOGGING['handlers']['celery_file']['filename'] = '/app/logs/celery.log'
 LOGGING['handlers']['celery_file']['formatter'] = 'json'
 LOGGING['root']['level'] = config('LOG_LEVEL', default='WARNING')
 LOGGING['loggers']['apps']['level'] = config('DJANGO_LOG_LEVEL', default='INFO')
@@ -63,7 +63,7 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='benjaminkaranja8393@gmail.com')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='kdsijc amosa asoms')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@agex.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@domain.com')
 
 # Celery for production
 CELERY_TASK_ALWAYS_EAGER = False

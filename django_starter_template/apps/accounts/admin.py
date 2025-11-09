@@ -28,10 +28,10 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         (_('Personal info'), {
-            'fields': ('first_name', 'last_name', 'phone_number', 'date_of_birth')
+            'fields': ('first_name', 'last_name')
         }),
         (_('Work Information'), {
-            'fields': ('employee_id', 'department'),
+            'fields': ('employee_id',),
             'classes': ('collapse',)
         }),
         (_('Role & Status'), {
@@ -194,7 +194,7 @@ class UserRoleAdmin(admin.ModelAdmin):
     actions = ['activate_roles', 'deactivate_roles']
 
     fieldsets = (
-        (None, {'fields': ('name', 'description', 'is_active')}),
+        (None, {'fields': ('name', 'description', 'is_active', 'display_name')}),
         (_('Permissions'), {
             'fields': ('permissions',),
             'classes': ('collapse',)

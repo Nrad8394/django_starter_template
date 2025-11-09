@@ -1,5 +1,5 @@
 """
-Storage Configuration for AGEX Application
+Storage Configuration for the Application
 ==========================================
 
 This module contains configurations for all storage backends including:
