@@ -61,8 +61,11 @@ class SessionActivityMiddleware:
                 session.save(update_fields=['expires_at'])
                 django_session.save(update_fields=['expire_date'])
             except Session.DoesNotExist:
-                # Django session doesn't exist, mark UserSession as expired
-                UserSession.objects.filter(id=session.id).update(is_active=False)
+                # Django session doesn't exist, mark UserSession as expired (logout occurred)
+                UserSession.objects.filter(id=session.id).update(
+                    is_active=False,
+                    expires_at=timezone.now()
+                )
                 return
                 
             # Populate device_info if not set

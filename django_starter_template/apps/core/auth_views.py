@@ -2,6 +2,7 @@
 Custom authentication views with proper API documentation tags
 """
 from rest_framework import serializers
+from django.utils import timezone
 from dj_rest_auth.views import (
     LoginView as BaseLoginView,
     LogoutView as BaseLogoutView,
@@ -75,7 +76,27 @@ class LogoutView(BaseLogoutView):
         responses={200: LogoutResponseSerializer}
     )
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        # Get the session key before logout
+        session_key = getattr(request.session, 'session_key', None)
+        
+        # Call the parent logout
+        response = super().post(request, *args, **kwargs)
+        
+        # After logout, expire the UserSession
+        if session_key:
+            try:
+                from apps.accounts.models import UserSession
+                UserSession.objects.filter(session_key=session_key).update(
+                    expires_at=timezone.now(),
+                    is_active=False
+                )
+            except Exception as e:
+                # Log error but don't fail the logout
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error expiring UserSession on logout: {e}")
+        
+        return response
 
 
 @extend_schema(
