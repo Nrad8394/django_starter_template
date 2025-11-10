@@ -75,7 +75,6 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
-    'apps.accounts.auth_backend.TrackingModelBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
