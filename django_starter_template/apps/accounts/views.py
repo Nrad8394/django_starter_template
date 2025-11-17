@@ -116,6 +116,7 @@ class CustomLoginView(LoginView):
         description="Delete a user account."
     )
 )
+@extend_schema(tags=["Users"])
 class UserViewSet(viewsets.ModelViewSet):
     """User management viewset"""
     queryset = User.objects.all()
@@ -355,6 +356,7 @@ class UserViewSet(viewsets.ModelViewSet):
         description="Delete a role."
     )
 )
+@extend_schema(tags=["Roles"])
 class UserRoleViewSet(viewsets.ModelViewSet):
     """User role management viewset"""
     queryset = UserRole.objects.all()
@@ -422,6 +424,7 @@ class UserRoleViewSet(viewsets.ModelViewSet):
         description="Delete a user profile."
     )
 )
+@extend_schema(tags=["User Profiles"])
 class UserProfileViewSet(viewsets.ModelViewSet):
     """User profile management viewset"""
     queryset = UserProfile.objects.all()
@@ -480,13 +483,9 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         tags=["User Sessions"],
         summary="Retrieve user session",
         description="Retrieve detailed information about a specific user session."
-    ),
-    destroy=extend_schema(
-        tags=["User Sessions"],
-        summary="Delete user session",
-        description="Delete a user session."
     )
 )
+@extend_schema(tags=["User Sessions"])
 class UserSessionViewSet(viewsets.ReadOnlyModelViewSet):
     """User session management viewset"""
     queryset = UserSession.objects.all()
@@ -582,6 +581,7 @@ class UserSessionViewSet(viewsets.ReadOnlyModelViewSet):
         description="Retrieve detailed information about a specific login attempt."
     )
 )
+@extend_schema(tags=["Login Attempts"])
 class LoginAttemptViewSet(viewsets.ReadOnlyModelViewSet):
     """Login attempt tracking viewset"""
     queryset = LoginAttempt.objects.all()
@@ -605,7 +605,7 @@ class LoginAttemptViewSet(viewsets.ReadOnlyModelViewSet):
 
 @extend_schema_view(
     list=extend_schema(
-        tags=["Role History"],
+        tags=["User Role History"],
         summary="List role changes",
         description="List user role change history.",
         parameters=[
@@ -615,11 +615,12 @@ class LoginAttemptViewSet(viewsets.ReadOnlyModelViewSet):
         ]
     ),
     retrieve=extend_schema(
-        tags=["Role History"],
+        tags=["User Role History"],
         summary="Retrieve role change",
         description="Retrieve detailed information about a specific role change."
     )
 )
+@extend_schema(tags=["User Role History"])
 class UserRoleHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     """User role history viewset"""
     queryset = UserRoleHistory.objects.all()
@@ -628,6 +629,7 @@ class UserRoleHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     ordering_fields = APIConstants.ROLE_ORDERING_FIELDS
     ordering = ['-created_at']
+    http_method_names = ['get', 'head', 'options']
 
     def get_queryset(self):
         """Filter queryset based on user permissions"""
@@ -679,6 +681,7 @@ class UserRoleHistoryViewSet(viewsets.ReadOnlyModelViewSet):
         description="Delete a permission. Warning: This may affect user access."
     )
 )
+@extend_schema(tags=["Permissions"])
 class PermissionViewSet(viewsets.ModelViewSet):
     """Permission management viewset"""
     queryset = Permission.objects.all()
@@ -790,6 +793,7 @@ class UserStatisticsView(views.APIView):
 class TwoFactorSetupView(views.APIView):
     """Setup 2FA for the current user"""
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TwoFactorSetupSerializer
 
     def post(self, request):
         """Setup 2FA and return QR code"""
@@ -901,6 +905,7 @@ class TwoFactorVerifyLoginView(views.APIView):
 class TwoFactorDisableView(views.APIView):
     """Disable 2FA for the current user"""
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = None
 
     def post(self, request):
         """Disable 2FA"""
@@ -920,6 +925,7 @@ class TwoFactorDisableView(views.APIView):
 class TwoFactorRegenerateBackupCodesView(views.APIView):
     """Regenerate backup codes"""
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TwoFactorBackupCodesSerializer
 
     def post(self, request):
         """Regenerate backup codes"""

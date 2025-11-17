@@ -26,28 +26,18 @@ class UserAdmin(BaseUserAdmin):
 
     # Fieldsets for the user detail/edit page
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
-        (_('Personal info'), {
-            'fields': ('first_name', 'last_name')
-        }),
-        (_('Work Information'), {
-            'fields': ('employee_id',),
-            'classes': ('collapse',)
-        }),
+        (None, {'fields': ('email', 'password','first_name', 'last_name')}),
         (_('Role & Status'), {
-            'fields': ('role', 'is_approved', 'is_verified'),
+            'fields': ('role', 'employee_id', 'is_approved', 'is_verified'),
         }),
         (_('Security'), {
             'fields': ('failed_login_attempts', 'account_locked_until', 'must_change_password'),
-            'classes': ('collapse',)
         }),
         (_('System Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-            'classes': ('collapse',)
         }),
         (_('Important dates'), {
             'fields': ('last_login', 'date_joined', 'password_changed_at'),
-            'classes': ('collapse',)
         }),
     )
 

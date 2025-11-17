@@ -159,11 +159,33 @@ SPECTACULAR_SETTINGS = {
             'name': 'Roles',
             'description': 'Role management and permissions configuration'
         },
+        {
+            'name': 'Login Attempts',
+            'description': 'Tracking and management of user login attempts'
+        },
+        {
+            'name': 'Permissions',
+            'description': 'Permission management and access control'
+        },
 
         # Core System
         {
             'name': 'Core',
             'description': 'Core application functionality and health checks'
+        },
+        {
+            'name': 'Statistics',
+            'description': 'Statistical data and analytics endpoints'
+        },
+
+        # security and notifications
+        {
+            'name': 'Security',
+            'description': 'Security features including rate limiting and audit logging'
+        },
+        {
+            'name': 'Notifications',
+            'description': 'User notifications and messaging system'
         },
     ],
 }

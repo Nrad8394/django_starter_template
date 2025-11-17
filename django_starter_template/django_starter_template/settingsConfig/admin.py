@@ -161,7 +161,7 @@ JAZZMIN_SETTINGS = {
     # - carousel
     "changeform_format": "horizontal_tabs",
     # override change forms on a per modeladmin basis
-    "changeform_format_overrides": {"accounts.User": "collapsible", "auth.Group": "vertical_tabs"},
+    "changeform_format_overrides": {"accounts.User": "horizontal_tabs", "auth.Group": "vertical_tabs"},
     # Add a language dropdown into the admin
     "language_chooser": False,
 }

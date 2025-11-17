@@ -66,30 +66,6 @@ MIDDLEWARE = [m for m in MIDDLEWARE if 'debug_toolbar' not in m]
 # Remove debug toolbar from installed apps in tests
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app not in ['debug_toolbar', 'django_browser_reload']]
 
-# Completely exclude PostgreSQL-specific apps from tests when using SQLite
-EXCLUDED_APPS = [
-    'ai_services.rag_engine.apps.RagEngineConfig',  # Requires pgvector
-]
-
-# Override AI_SERVICE_APPS to exclude PostgreSQL-specific apps
-AI_SERVICE_APPS = [
-    'ai_services.content_generation.apps.ContentGenerationConfig',
-    'ai_services.document_processing.apps.DocumentProcessingConfig',
-    'ai_services.mcp_server.apps.McpServerConfig'  # Include MCP server for tests
-]
-
-# Reconstruct INSTALLED_APPS without excluded apps
-from .base import DJANGO_APPS, THIRD_PARTY_APPS, LOCAL_APPS
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS + AI_SERVICE_APPS
-INSTALLED_APPS = [app for app in INSTALLED_APPS if app not in EXCLUDED_APPS]
-
-# Skip migrations for PostgreSQL-specific apps and problematic ones
-MIGRATION_MODULES = {
-    'rag_engine': None,  # Completely skip rag_engine migrations
-    'content_generation': None,  # Skip content_generation migrations that depend on rag_engine
-    'core': None,  # Skip core migrations that include vector extension
-}
-
 # Standard Django test runner (no pgvector needed for SQLite)
 # TEST_RUNNER = 'ai_services.rag_engine.test_runner.PgVectorTestRunner'
 

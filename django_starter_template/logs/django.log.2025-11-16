@@ -1,0 +1,45 @@
+INFO 2025-11-16 07:19:31,560 autoreload 7316 13252 Watching for file changes with StatReloader
+WARNING 2025-11-16 09:38:43,212 log 7316 16744 Not Found: /favicon.ico
+INFO 2025-11-16 09:40:27,693 services 7316 16744 Successful login for admin@example.com
+INFO 2025-11-16 09:40:27,693 middleware 7316 16744 Login successful for admin@example.com from 127.0.0.1
+WARNING 2025-11-16 09:40:31,274 middleware 7316 16744 Slow request detected
+INFO 2025-11-16 09:47:58,010 autoreload 7316 13252 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:47:59,909 autoreload 7832 17380 Watching for file changes with StatReloader
+INFO 2025-11-16 09:48:04,352 autoreload 7832 17380 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:48:06,335 autoreload 2688 16720 Watching for file changes with StatReloader
+INFO 2025-11-16 09:48:48,129 autoreload 2688 16720 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:48:50,219 autoreload 13868 10252 Watching for file changes with StatReloader
+INFO 2025-11-16 09:50:58,997 autoreload 13868 10252 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:51:01,152 autoreload 10232 12084 Watching for file changes with StatReloader
+INFO 2025-11-16 09:51:13,619 autoreload 10232 12084 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:51:15,456 autoreload 9760 5456 Watching for file changes with StatReloader
+INFO 2025-11-16 09:53:48,222 autoreload 9760 5456 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:53:50,269 autoreload 15532 14040 Watching for file changes with StatReloader
+INFO 2025-11-16 09:54:26,011 autoreload 15532 14040 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 09:54:27,777 autoreload 15976 8088 Watching for file changes with StatReloader
+INFO 2025-11-16 10:15:39,393 autoreload 8812 17352 Watching for file changes with StatReloader
+INFO 2025-11-16 10:42:37,710 autoreload 15976 8088 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 10:42:39,569 autoreload 13144 2352 Watching for file changes with StatReloader
+INFO 2025-11-16 10:42:45,240 autoreload 13144 2352 D:\django-starter-template\django_starter_template\apps\accounts\views.py changed, reloading.
+INFO 2025-11-16 10:42:47,057 autoreload 2008 15800 Watching for file changes with StatReloader
+INFO 2025-11-16 10:42:56,984 autoreload 2008 15800 D:\django-starter-template\django_starter_template\apps\accounts\views.py changed, reloading.
+INFO 2025-11-16 10:42:58,739 autoreload 15860 3816 Watching for file changes with StatReloader
+INFO 2025-11-16 10:43:07,154 autoreload 15860 3816 D:\django-starter-template\django_starter_template\apps\accounts\urls.py changed, reloading.
+INFO 2025-11-16 10:43:08,938 autoreload 11688 16192 Watching for file changes with StatReloader
+INFO 2025-11-16 10:43:19,766 autoreload 11688 16192 D:\django-starter-template\django_starter_template\apps\accounts\urls.py changed, reloading.
+INFO 2025-11-16 10:43:21,605 autoreload 6440 2352 Watching for file changes with StatReloader
+INFO 2025-11-16 10:43:40,849 autoreload 6440 2352 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 10:43:42,757 autoreload 1860 11272 Watching for file changes with StatReloader
+INFO 2025-11-16 10:45:07,108 autoreload 1860 11272 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 10:45:08,934 autoreload 17060 7172 Watching for file changes with StatReloader
+INFO 2025-11-16 10:45:19,690 autoreload 17060 7172 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 10:45:21,468 autoreload 4324 17128 Watching for file changes with StatReloader
+INFO 2025-11-16 11:05:46,256 autoreload 4324 17128 D:\django-starter-template\django_starter_template\apps\accounts\views.py changed, reloading.
+INFO 2025-11-16 11:05:48,555 autoreload 17156 16888 Watching for file changes with StatReloader
+WARNING 2025-11-16 11:28:38,683 log 17156 3756 Not Found: /accounts/permissions
+WARNING 2025-11-16 12:01:18,078 log 17156 16976 Not Found: /accounts/permissions
+INFO 2025-11-16 13:12:33,061 autoreload 15544 17672 Watching for file changes with StatReloader
+INFO 2025-11-16 13:14:18,668 autoreload 15544 17672 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 13:14:20,493 autoreload 15320 11912 Watching for file changes with StatReloader
+INFO 2025-11-16 13:14:22,728 autoreload 15320 11912 D:\django-starter-template\django_starter_template\apps\accounts\serializers.py changed, reloading.
+INFO 2025-11-16 13:14:24,599 autoreload 2020 3748 Watching for file changes with StatReloader

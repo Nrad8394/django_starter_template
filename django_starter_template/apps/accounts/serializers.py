@@ -510,6 +510,7 @@ class UserSessionSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_name = serializers.SerializerMethodField()
     duration = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
     ip_address = serializers.CharField(read_only=True)
 
     class Meta:
@@ -522,6 +523,10 @@ class UserSessionSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField)
     def get_user_name(self, obj) -> str:
         return obj.user.get_full_name()
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_active(self, obj) -> bool:
+        return obj.is_active
 
     @extend_schema_field(serializers.DurationField)
     def get_duration(self, obj) -> Optional[str]:
@@ -793,7 +798,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
     """Serializer for user management by admins"""
     role_name = serializers.CharField(write_only=True, required=False)
     role = UserRoleListSerializer(read_only=True, allow_null=True)
-    full_name = serializers.ReadOnlyField()
+    full_name = serializers.SerializerMethodField()
     employee_id = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
@@ -810,28 +815,23 @@ class UserManagementSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'email', 'created_at', 'last_login', 'failed_login_attempts',
                            'account_locked_until', 'password_changed_at']
     
-    def update(self, instance, validated_data):
-        role_name = validated_data.pop('role_name', None)
-        
-        if role_name:
-            try:
-                new_role = UserRole.objects.get(name=role_name)
-                instance.role = new_role
-            except UserRole.DoesNotExist:
-                raise serializers.ValidationError(f"Role '{role_name}' does not exist")
-        
-        return super().update(instance, validated_data)
+    @extend_schema_field(serializers.CharField)
+    def get_full_name(self, obj) -> str:
+        return obj.get_full_name()
 
-    def get_employee_id(self, obj):
+    @extend_schema_field(serializers.CharField)
+    def get_employee_id(self, obj) -> str:
         return obj.employee_id
 
-    def get_department(self, obj):
+    @extend_schema_field(serializers.CharField)
+    def get_department(self, obj) -> str:
         try:
             return obj.profile.department
         except UserProfile.DoesNotExist:
             return ''
 
-    def get_phone_number(self, obj):
+    @extend_schema_field(serializers.CharField)
+    def get_phone_number(self, obj) -> str:
         try:
             return obj.profile.phone_number
         except UserProfile.DoesNotExist:
@@ -915,6 +915,7 @@ class UserSessionSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_full_name = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
     is_current_session = serializers.SerializerMethodField()
     ip_address = serializers.CharField(read_only=True)
@@ -928,12 +929,17 @@ class UserSessionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
-    def get_user_full_name(self, obj):
+    @extend_schema_field(serializers.CharField)
+    def get_user_full_name(self, obj) -> str:
         return obj.user.get_full_name()
 
-    @extend_schema_field(serializers.CharField)
+    @extend_schema_field(serializers.BooleanField)
     def get_is_expired(self, obj) -> bool:
         return obj.is_expired()
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_active(self, obj) -> bool:
+        return obj.is_active
 
     @extend_schema_field(serializers.FloatField)
     def get_risk_score(self, obj) -> float:
