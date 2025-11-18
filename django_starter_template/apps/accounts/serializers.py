@@ -216,7 +216,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
 class UserDetailSerializer(serializers.ModelSerializer):
     """User serializer for detail views"""
-    role_display = serializers.CharField(source='role.display_name', read_only=True)
+    role_name = serializers.CharField(source='role.name', read_only=True)
     full_name = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
     profile = serializers.SerializerMethodField()
@@ -236,7 +236,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name', 'phone_number',
             'employee_id', 'department', 'date_of_birth', 'profile_picture',
-            'ward', 'constituency', 'county', 'location', 'role_display',
+            'ward', 'constituency', 'county', 'location', 'role_name',
             'is_active', 'is_approved', 'is_verified', 'is_staff',
             'failed_login_attempts', 'account_locked_until', 'last_login_ip',
             'profile', 'permissions', 'role_permissions',
