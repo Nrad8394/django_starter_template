@@ -61,6 +61,9 @@ THIRD_PARTY_APPS = [
     'django_celery_beat',  # Database-backed Celery scheduler
     'storages',  # Django-storages for MinIO/S3 support
     'django_otp',  # Two-factor authentication
+    'django_otp.plugins.otp_totp',
+    'django_otp.plugins.otp_hotp',
+    'django_otp.plugins.otp_static',
 ]
 
 LOCAL_APPS = [
