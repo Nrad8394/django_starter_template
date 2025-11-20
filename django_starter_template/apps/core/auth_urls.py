@@ -2,25 +2,8 @@
 Custom authentication URLs with properly tagged views
 """
 from django.urls import path, include
-from dj_rest_auth.views import TokenRefreshView
-from drf_spectacular.utils import extend_schema
 from . import auth_views
-from .serializers import CustomTokenRefreshSerializer
 from .views import HistoryListView
-
-
-# Create a custom TokenRefreshView with proper tags
-class CustomTokenRefreshView(TokenRefreshView):
-    serializer_class = CustomTokenRefreshSerializer
-
-    @extend_schema(
-        tags=['Authentication'],
-        summary="Refresh JWT token",
-        description="Refresh JWT access token using refresh token from httpOnly cookies. No request body required.",
-    )
-    def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
-
 
 urlpatterns = [
     # Custom authentication endpoints with proper tags
@@ -36,7 +19,7 @@ urlpatterns = [
     ),
 
     # JWT token endpoints
-    path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', auth_views.CustomTokenRefreshView.as_view(), name='token_refresh'),
 
     # Registration endpoints
     path('registration/', auth_views.RegisterView.as_view(), name='rest_register'),

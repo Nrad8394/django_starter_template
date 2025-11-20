@@ -23,6 +23,21 @@ from .serializers import (
     PasswordResetConfirmResponseSerializer,
     PasswordResetSerializer
 )
+from .serializers import CustomTokenRefreshSerializer
+from dj_rest_auth.jwt_auth import get_refresh_view
+
+
+# Create a custom TokenRefreshView with proper tags
+class CustomTokenRefreshView(get_refresh_view()):
+    serializer_class = CustomTokenRefreshSerializer
+
+    @extend_schema(
+        tags=['Authentication'],
+        summary="Refresh JWT token",
+        description="Refresh JWT access token using refresh token from httpOnly cookies. No request body required.",
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 # Simple response serializers for API documentation
