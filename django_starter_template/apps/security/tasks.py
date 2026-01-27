@@ -68,7 +68,7 @@ def handle_failed_login(event):
     recent_failures = SecurityEvent.objects.filter(
         event_type=SecurityEvent.TYPE_FAILED_LOGIN,
         ip_address=event.ip_address,
-        timestamp__gte=timezone.now() - timezone.timedelta(hours=1)
+        timestamp__gte=timezone.now() - timezone.timedelta(hours=1),
     ).count()
 
     if recent_failures >= 5:
@@ -124,13 +124,10 @@ def rotate_api_keys(self):
     try:
         # Find keys that need rotation
         expired_keys = APIKey.objects.filter(
-            expires_at__lt=timezone.now(),
-            status=APIKey.STATUS_ACTIVE
+            expires_at__lt=timezone.now(), status=APIKey.STATUS_ACTIVE
         )
 
-        compromised_keys = APIKey.objects.filter(
-            status=APIKey.STATUS_COMPROMISED
-        )
+        compromised_keys = APIKey.objects.filter(status=APIKey.STATUS_COMPROMISED)
 
         rotated_count = 0
 
@@ -142,9 +139,9 @@ def rotate_api_keys(self):
             AuditLog.objects.create(
                 user=api_key.user,
                 action=AuditLog.ACTION_KEY_ROTATED,
-                resource_type='APIKey',
+                resource_type="APIKey",
                 resource_id=str(api_key.id),
-                details=f"API key rotated. Old key: {api_key.key[:8]}..."
+                details=f"API key rotated. Old key: {api_key.key[:8]}...",
             )
 
             # Update key
@@ -192,24 +189,29 @@ def generate_security_report():
         since = timezone.now() - timezone.timedelta(days=1)
 
         report_data = {
-            'period': f"{since.date()} to {timezone.now().date()}",
-            'total_events': SecurityEvent.objects.filter(timestamp__gte=since).count(),
-            'events_by_type': list(SecurityEvent.objects.filter(timestamp__gte=since)
-                                  .values('event_type')
-                                  .annotate(count=Count('id'))
-                                  .order_by('-count')),
-            'suspicious_activities': SecurityEvent.objects.filter(
-                timestamp__gte=since,
-                severity__in=['HIGH', 'CRITICAL']
+            "period": f"{since.date()} to {timezone.now().date()}",
+            "total_events": SecurityEvent.objects.filter(timestamp__gte=since).count(),
+            "events_by_type": list(
+                SecurityEvent.objects.filter(timestamp__gte=since)
+                .values("event_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+            ),
+            "suspicious_activities": SecurityEvent.objects.filter(
+                timestamp__gte=since, severity__in=["HIGH", "CRITICAL"]
             ).count(),
-            'blocked_ips': SecurityEvent.objects.filter(
-                timestamp__gte=since,
-                action_taken='BLOCKED'
-            ).values('ip_address').distinct().count(),
-            'top_attack_sources': list(SecurityEvent.objects.filter(timestamp__gte=since)
-                                     .values('ip_address')
-                                     .annotate(count=Count('id'))
-                                     .order_by('-count')[:10])
+            "blocked_ips": SecurityEvent.objects.filter(
+                timestamp__gte=since, action_taken="BLOCKED"
+            )
+            .values("ip_address")
+            .distinct()
+            .count(),
+            "top_attack_sources": list(
+                SecurityEvent.objects.filter(timestamp__gte=since)
+                .values("ip_address")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:10]
+            ),
         }
 
         # Send report to security team
@@ -245,14 +247,16 @@ def monitor_api_key_usage(self):
         since = timezone.now() - timezone.timedelta(hours=1)
 
         # Find keys with high usage
-        high_usage_keys = APIKey.objects.filter(
-            last_used_at__gte=since
-        ).order_by('-usage_count')[:10]
+        high_usage_keys = APIKey.objects.filter(last_used_at__gte=since).order_by(
+            "-usage_count"
+        )[:10]
 
         for api_key in high_usage_keys:
             # Check if usage is above threshold
             if api_key.usage_count > 1000:  # Configurable threshold
-                logger.warning(f"High API key usage detected: {api_key.name} ({api_key.usage_count} requests)")
+                logger.warning(
+                    f"High API key usage detected: {api_key.name} ({api_key.usage_count} requests)"
+                )
 
                 # Could implement rate limiting or alerts
 

@@ -20,12 +20,12 @@ class RateLimitMiddlewareTest(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.middleware = RateLimitMiddleware(lambda r: JsonResponse({'test': 'ok'}))
+        self.middleware = RateLimitMiddleware(lambda r: JsonResponse({"test": "ok"}))
         cache.clear()  # Clear cache before each test
 
     def test_rate_limit_exempt_paths(self):
         """Test that exempt paths are not rate limited"""
-        exempt_paths = ['/admin/', '/static/', '/media/', '/health/']
+        exempt_paths = ["/admin/", "/static/", "/media/", "/health/"]
 
         for path in exempt_paths:
             request = self.factory.get(path)
@@ -35,9 +35,9 @@ class RateLimitMiddlewareTest(TestCase):
 
     def test_rate_limit_basic_functionality(self):
         """Test basic rate limiting functionality"""
-        request = self.factory.get('/api/test/')
+        request = self.factory.get("/api/test/")
         request.user = AnonymousUser()
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
 
         # First request should pass
         response1 = self.middleware(request)
@@ -51,51 +51,51 @@ class RateLimitMiddlewareTest(TestCase):
         # Create a blocked rate limit entry
         RateLimit.objects.create(
             limit_type=RateLimit.LimitType.IP,
-            identifier='192.168.1.1',
-            endpoint='/api/test/',
+            identifier="192.168.1.1",
+            endpoint="/api/test/",
             request_count=1000,
             window_start=timezone.now(),
             window_end=timezone.now() + timedelta(minutes=1),
             is_blocked=True,
-            blocked_until=timezone.now() + timedelta(minutes=15)
+            blocked_until=timezone.now() + timedelta(minutes=15),
         )
 
-        request = self.factory.get('/api/test/')
+        request = self.factory.get("/api/test/")
         request.user = AnonymousUser()
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
 
         response = self.middleware(request)
         self.assertEqual(response.status_code, 429)
-        self.assertIn('Rate limit exceeded', response.content.decode())
+        self.assertIn("Rate limit exceeded", response.content.decode())
 
-    @patch('apps.security.middleware.rate_limit.AuditLog.objects.create')
+    @patch("apps.security.middleware.rate_limit.AuditLog.objects.create")
     def test_rate_limit_audit_log(self, mock_audit_log):
         """Test that rate limit violations are logged"""
         # Create a blocked rate limit entry
         RateLimit.objects.create(
             limit_type=RateLimit.LimitType.IP,
-            identifier='192.168.1.1',
-            endpoint='/api/test/',
+            identifier="192.168.1.1",
+            endpoint="/api/test/",
             request_count=1000,
             window_start=timezone.now(),
             window_end=timezone.now() + timedelta(minutes=1),
             is_blocked=True,
-            blocked_until=timezone.now() + timedelta(minutes=15)
+            blocked_until=timezone.now() + timedelta(minutes=15),
         )
 
-        request = self.factory.get('/api/test/')
+        request = self.factory.get("/api/test/")
         request.user = AnonymousUser()
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
-        request.META['HTTP_USER_AGENT'] = 'Test Agent'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
+        request.META["HTTP_USER_AGENT"] = "Test Agent"
 
         self.middleware(request)
 
         # Verify audit log was created
         mock_audit_log.assert_called_once()
         call_args = mock_audit_log.call_args[1]
-        self.assertEqual(call_args['event_type'], AuditLog.EventType.SECURITY_VIOLATION)
-        self.assertEqual(call_args['severity'], AuditLog.Severity.MEDIUM)
-        self.assertIn('Rate limit exceeded', call_args['description'])
+        self.assertEqual(call_args["event_type"], AuditLog.EventType.SECURITY_VIOLATION)
+        self.assertEqual(call_args["severity"], AuditLog.Severity.MEDIUM)
+        self.assertIn("Rate limit exceeded", call_args["description"])
 
 
 class AuditLogMiddlewareTest(TestCase):
@@ -103,19 +103,19 @@ class AuditLogMiddlewareTest(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.middleware = AuditLogMiddleware(lambda r: JsonResponse({'test': 'ok'}))
+        self.middleware = AuditLogMiddleware(lambda r: JsonResponse({"test": "ok"}))
 
     def test_audit_log_successful_request(self):
         """Test logging successful requests"""
-        user = User.objects.create_user(email='test@example.com', password='testpass')
-        request = self.factory.get('/api/test/')
+        user = User.objects.create_user(email="test@example.com", password="testpass")
+        request = self.factory.get("/api/test/")
         request.user = user
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
-        request.META['HTTP_USER_AGENT'] = 'Test Agent'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
+        request.META["HTTP_USER_AGENT"] = "Test Agent"
         request.session = MagicMock()
-        request.session.session_key = 'test_session_key'
+        request.session.session_key = "test_session_key"
 
-        response = JsonResponse({'test': 'ok'})
+        response = JsonResponse({"test": "ok"})
         response.status_code = 200
 
         middleware_response = self.middleware(request)
@@ -129,14 +129,14 @@ class AuditLogMiddlewareTest(TestCase):
 
     def test_audit_log_failed_request(self):
         """Test logging failed requests"""
-        user = User.objects.create_user(email='test2@example.com', password='testpass')
-        request = self.factory.get('/api/test/')
+        user = User.objects.create_user(email="test2@example.com", password="testpass")
+        request = self.factory.get("/api/test/")
         request.user = user
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
 
         # Create middleware with get_response that returns 404
         def get_response_404(request):
-            response = JsonResponse({'error': 'Not found'})
+            response = JsonResponse({"error": "Not found"})
             response.status_code = 404
             return response
 
@@ -144,37 +144,33 @@ class AuditLogMiddlewareTest(TestCase):
         middleware(request)
 
         # Check that audit log was created for failed request
-        audit_log = AuditLog.objects.filter(
-            response_status=404
-        ).first()
+        audit_log = AuditLog.objects.filter(response_status=404).first()
         self.assertIsNotNone(audit_log)
 
     def test_audit_log_authentication_events(self):
         """Test logging authentication events"""
-        user = User.objects.create_user(email='test3@example.com', password='testpass')
-        request = self.factory.post('/api/auth/login/')
+        user = User.objects.create_user(email="test3@example.com", password="testpass")
+        request = self.factory.post("/api/auth/login/")
         request.user = user
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
 
-        response = JsonResponse({'token': 'test_token'})
+        response = JsonResponse({"token": "test_token"})
         response.status_code = 200
 
         self.middleware(request)
 
         # Check that login event was logged
-        audit_log = AuditLog.objects.filter(
-            event_type=AuditLog.EventType.LOGIN
-        ).first()
+        audit_log = AuditLog.objects.filter(event_type=AuditLog.EventType.LOGIN).first()
         self.assertIsNotNone(audit_log)
 
     def test_audit_log_suspicious_activity(self):
         """Test logging suspicious activity"""
-        user = User.objects.create_user(email='test4@example.com', password='testpass')
-        request = self.factory.get('/api/test/?union=select')
+        user = User.objects.create_user(email="test4@example.com", password="testpass")
+        request = self.factory.get("/api/test/?union=select")
         request.user = user
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
 
-        response = JsonResponse({'test': 'ok'})
+        response = JsonResponse({"test": "ok"})
 
         self.middleware(request)
 
@@ -187,17 +183,19 @@ class AuditLogMiddlewareTest(TestCase):
     def test_audit_log_request_data_sanitization(self):
         """Test that sensitive request data is sanitized"""
         request = self.factory.post(
-            '/api/test/',
+            "/api/test/",
             data='{"password": "secret123", "api_key": "key123"}',
-            content_type='application/json'
+            content_type="application/json",
         )
-        request.user = User.objects.create_user(email='test5@example.com', password='testpass')
-        request.META['REMOTE_ADDR'] = '192.168.1.1'
+        request.user = User.objects.create_user(
+            email="test5@example.com", password="testpass"
+        )
+        request.META["REMOTE_ADDR"] = "192.168.1.1"
 
         # Mock the _audit_body attribute
         request._audit_body = '{"password": "secret123", "api_key": "key123"}'
 
-        response = JsonResponse({'test': 'ok'})
+        response = JsonResponse({"test": "ok"})
 
         self.middleware(request)
 
@@ -210,16 +208,16 @@ class AuditLogMiddlewareTest(TestCase):
         if audit_log.request_data:
             # Password and api_key should be redacted
             request_data_str = str(audit_log.request_data)
-            self.assertNotIn('secret123', request_data_str)
-            self.assertNotIn('key123', request_data_str)
-            self.assertIn('***REDACTED***', request_data_str)
+            self.assertNotIn("secret123", request_data_str)
+            self.assertNotIn("key123", request_data_str)
+            self.assertIn("***REDACTED***", request_data_str)
 
     def test_audit_log_exempt_paths(self):
         """Test that exempt paths are not audited"""
-        exempt_request = self.factory.get('/static/test.js')
+        exempt_request = self.factory.get("/static/test.js")
         exempt_request.user = AnonymousUser()
 
-        response = JsonResponse({'test': 'ok'})
+        response = JsonResponse({"test": "ok"})
 
         self.middleware(exempt_request)
 

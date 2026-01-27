@@ -14,25 +14,25 @@ class AuditLog(models.Model):
     """Model for logging security and system events"""
 
     class EventType(models.TextChoices):
-        LOGIN = 'login', _('Login')
-        LOGOUT = 'logout', _('Logout')
-        PASSWORD_CHANGE = 'password_change', _('Password Change')
-        PASSWORD_RESET = 'password_reset', _('Password Reset')
-        PROFILE_UPDATE = 'profile_update', _('Profile Update')
-        PERMISSION_CHANGE = 'permission_change', _('Permission Change')
-        DATA_ACCESS = 'data_access', _('Data Access')
-        DATA_MODIFICATION = 'data_modification', _('Data Modification')
-        SECURITY_VIOLATION = 'security_violation', _('Security Violation')
-        UNAUTHORIZED_ACCESS = 'unauthorized_access', _('Unauthorized Access')
-        API_ACCESS = 'api_access', _('API Access')
-        FAILED_LOGIN = 'failed_login', _('Failed Login')
-        SUSPICIOUS_ACTIVITY = 'suspicious_activity', _('Suspicious Activity')
+        LOGIN = "login", _("Login")
+        LOGOUT = "logout", _("Logout")
+        PASSWORD_CHANGE = "password_change", _("Password Change")
+        PASSWORD_RESET = "password_reset", _("Password Reset")
+        PROFILE_UPDATE = "profile_update", _("Profile Update")
+        PERMISSION_CHANGE = "permission_change", _("Permission Change")
+        DATA_ACCESS = "data_access", _("Data Access")
+        DATA_MODIFICATION = "data_modification", _("Data Modification")
+        SECURITY_VIOLATION = "security_violation", _("Security Violation")
+        UNAUTHORIZED_ACCESS = "unauthorized_access", _("Unauthorized Access")
+        API_ACCESS = "api_access", _("API Access")
+        FAILED_LOGIN = "failed_login", _("Failed Login")
+        SUSPICIOUS_ACTIVITY = "suspicious_activity", _("Suspicious Activity")
 
     class Severity(models.TextChoices):
-        LOW = 'low', _('Low')
-        MEDIUM = 'medium', _('Medium')
-        HIGH = 'high', _('High')
-        CRITICAL = 'critical', _('Critical')
+        LOW = "low", _("Low")
+        MEDIUM = "medium", _("Medium")
+        HIGH = "high", _("High")
+        CRITICAL = "critical", _("Critical")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -40,18 +40,13 @@ class AuditLog(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='audit_logs'
+        related_name="audit_logs",
     )
     event_type = models.CharField(
-        max_length=50,
-        choices=EventType.choices,
-        db_index=True
+        max_length=50, choices=EventType.choices, db_index=True
     )
     severity = models.CharField(
-        max_length=20,
-        choices=Severity.choices,
-        default=Severity.MEDIUM,
-        db_index=True
+        max_length=20, choices=Severity.choices, default=Severity.MEDIUM, db_index=True
     )
     description = models.TextField()
     ip_address = models.GenericIPAddressField(null=True, blank=True)
@@ -65,12 +60,12 @@ class AuditLog(models.Model):
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        ordering = ['-timestamp']
+        ordering = ["-timestamp"]
         indexes = [
-            models.Index(fields=['user', 'event_type']),
-            models.Index(fields=['event_type', 'timestamp']),
-            models.Index(fields=['severity', 'timestamp']),
-            models.Index(fields=['ip_address', 'timestamp']),
+            models.Index(fields=["user", "event_type"]),
+            models.Index(fields=["event_type", "timestamp"]),
+            models.Index(fields=["severity", "timestamp"]),
+            models.Index(fields=["ip_address", "timestamp"]),
         ]
 
     def __str__(self):
@@ -81,17 +76,17 @@ class RateLimit(models.Model):
     """Model for rate limiting"""
 
     class LimitType(models.TextChoices):
-        IP = 'ip', _('IP Address')
-        USER = 'user', _('User')
-        API_KEY = 'api_key', _('API Key')
+        IP = "ip", _("IP Address")
+        USER = "user", _("User")
+        API_KEY = "api_key", _("API Key")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     limit_type = models.CharField(
-        max_length=20,
-        choices=LimitType.choices,
-        db_index=True
+        max_length=20, choices=LimitType.choices, db_index=True
     )
-    identifier = models.CharField(max_length=255, db_index=True)  # IP, user_id, or api_key
+    identifier = models.CharField(
+        max_length=255, db_index=True
+    )  # IP, user_id, or api_key
     endpoint = models.CharField(max_length=500, db_index=True)
     request_count = models.IntegerField(default=0)
     window_start = models.DateTimeField(default=timezone.now, db_index=True)
@@ -100,11 +95,11 @@ class RateLimit(models.Model):
     is_blocked = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ['limit_type', 'identifier', 'endpoint', 'window_start']
+        unique_together = ["limit_type", "identifier", "endpoint", "window_start"]
         indexes = [
-            models.Index(fields=['limit_type', 'identifier']),
-            models.Index(fields=['endpoint', 'window_start']),
-            models.Index(fields=['is_blocked', 'blocked_until']),
+            models.Index(fields=["limit_type", "identifier"]),
+            models.Index(fields=["endpoint", "window_start"]),
+            models.Index(fields=["is_blocked", "blocked_until"]),
         ]
 
     def __str__(self):
@@ -119,40 +114,35 @@ class SecurityEvent(models.Model):
     """Model for security events and alerts"""
 
     class EventType(models.TextChoices):
-        BRUTE_FORCE = 'brute_force', _('Brute Force Attack')
-        SQL_INJECTION = 'sql_injection', _('SQL Injection Attempt')
-        XSS = 'xss', _('Cross-Site Scripting')
-        CSRF = 'csrf', _('CSRF Attack')
-        UNAUTHORIZED_ACCESS = 'unauthorized_access', _('Unauthorized Access')
-        SUSPICIOUS_IP = 'suspicious_ip', _('Suspicious IP Activity')
-        MALWARE_UPLOAD = 'malware_upload', _('Malware Upload Attempt')
-        DATA_BREACH = 'data_breach', _('Data Breach Attempt')
-        API_ABUSE = 'api_abuse', _('API Abuse')
+        BRUTE_FORCE = "brute_force", _("Brute Force Attack")
+        SQL_INJECTION = "sql_injection", _("SQL Injection Attempt")
+        XSS = "xss", _("Cross-Site Scripting")
+        CSRF = "csrf", _("CSRF Attack")
+        UNAUTHORIZED_ACCESS = "unauthorized_access", _("Unauthorized Access")
+        SUSPICIOUS_IP = "suspicious_ip", _("Suspicious IP Activity")
+        MALWARE_UPLOAD = "malware_upload", _("Malware Upload Attempt")
+        DATA_BREACH = "data_breach", _("Data Breach Attempt")
+        API_ABUSE = "api_abuse", _("API Abuse")
 
     class Status(models.TextChoices):
-        ACTIVE = 'active', _('Active')
-        RESOLVED = 'resolved', _('Resolved')
-        FALSE_POSITIVE = 'false_positive', _('False Positive')
-        IGNORED = 'ignored', _('Ignored')
+        ACTIVE = "active", _("Active")
+        RESOLVED = "resolved", _("Resolved")
+        FALSE_POSITIVE = "false_positive", _("False Positive")
+        IGNORED = "ignored", _("Ignored")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event_type = models.CharField(
-        max_length=50,
-        choices=EventType.choices,
-        db_index=True
+        max_length=50, choices=EventType.choices, db_index=True
     )
     status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-        db_index=True
+        max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
     severity = models.CharField(
         max_length=20,
         choices=AuditLog.Severity.choices,
-        default=AuditLog.Severity.MEDIUM
+        default=AuditLog.Severity.MEDIUM,
     )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user = models.ForeignKey(
@@ -160,12 +150,10 @@ class SecurityEvent(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='security_events'
+        related_name="security_events",
     )
     related_audit_logs = models.ManyToManyField(
-        AuditLog,
-        related_name='security_events',
-        blank=True
+        AuditLog, related_name="security_events", blank=True
     )
     detection_data = models.JSONField(null=True, blank=True)
     resolution_notes = models.TextField(null=True, blank=True)
@@ -174,18 +162,18 @@ class SecurityEvent(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='resolved_security_events'
+        related_name="resolved_security_events",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['event_type', 'status']),
-            models.Index(fields=['severity', 'created_at']),
-            models.Index(fields=['ip_address', 'created_at']),
+            models.Index(fields=["event_type", "status"]),
+            models.Index(fields=["severity", "created_at"]),
+            models.Index(fields=["ip_address", "created_at"]),
         ]
 
     def __str__(self):
@@ -211,9 +199,10 @@ class EncryptedField(models.TextField):
         """Get or generate encryption key"""
         if self._encryption_key is not None:
             return self._encryption_key
-            
+
         from django.conf import settings
-        key = getattr(settings, 'ENCRYPTION_KEY', None)
+
+        key = getattr(settings, "ENCRYPTION_KEY", None)
         if not key:
             # Generate a new key if not set
             key = Fernet.generate_key()
@@ -221,7 +210,7 @@ class EncryptedField(models.TextField):
         elif isinstance(key, str):
             # If key is a string, decode it
             key = key.encode()
-        
+
         self._encryption_key = key
         return key
 
@@ -257,17 +246,15 @@ class SecuritySettings(models.Model):
     """Global security settings"""
 
     class SettingType(models.TextChoices):
-        RATE_LIMIT = 'rate_limit', _('Rate Limiting')
-        PASSWORD_POLICY = 'password_policy', _('Password Policy')
-        SESSION_POLICY = 'session_policy', _('Session Policy')
-        ENCRYPTION = 'encryption', _('Encryption')
-        AUDIT = 'audit', _('Audit Logging')
+        RATE_LIMIT = "rate_limit", _("Rate Limiting")
+        PASSWORD_POLICY = "password_policy", _("Password Policy")
+        SESSION_POLICY = "session_policy", _("Session Policy")
+        ENCRYPTION = "encryption", _("Encryption")
+        AUDIT = "audit", _("Audit Logging")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     setting_type = models.CharField(
-        max_length=50,
-        choices=SettingType.choices,
-        db_index=True
+        max_length=50, choices=SettingType.choices, db_index=True
     )
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
@@ -277,7 +264,7 @@ class SecuritySettings(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['setting_type']
+        ordering = ["setting_type"]
 
     def __str__(self):
         return f"{self.setting_type} - {self.name}"
@@ -287,22 +274,18 @@ class APIKey(models.Model):
     """Model for API key management"""
 
     class KeyType(models.TextChoices):
-        SERVICE = 'service', _('Service Account')
-        USER = 'user', _('User API Key')
-        INTEGRATION = 'integration', _('Third-party Integration')
+        SERVICE = "service", _("Service Account")
+        USER = "user", _("User API Key")
+        INTEGRATION = "integration", _("Third-party Integration")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     key_type = models.CharField(
-        max_length=20,
-        choices=KeyType.choices,
-        default=KeyType.USER
+        max_length=20, choices=KeyType.choices, default=KeyType.USER
     )
     key = models.CharField(max_length=128, unique=True, db_index=True)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='api_keys'
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_keys"
     )
     permissions = models.JSONField(default=dict)  # Custom permissions for the key
     rate_limit = models.IntegerField(default=1000)  # Requests per hour
@@ -313,10 +296,10 @@ class APIKey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', 'is_active']),
-            models.Index(fields=['key', 'is_active']),
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["key", "is_active"]),
         ]
 
     def __str__(self):
@@ -330,8 +313,9 @@ class APIKey(models.Model):
         """Generate a secure API key"""
         import secrets
         import string
+
         alphabet = string.ascii_letters + string.digits
-        self.key = ''.join(secrets.choice(alphabet) for _ in range(64))
+        self.key = "".join(secrets.choice(alphabet) for _ in range(64))
 
     def save(self, *args, **kwargs):
         if not self.key:

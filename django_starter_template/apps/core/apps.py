@@ -3,9 +3,9 @@ from django.db.models.signals import post_migrate
 
 
 class CoreConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.core'
-    verbose_name = 'Core'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.core"
+    verbose_name = "Core"
 
     def ready(self):
         # Import signals here to ensure they are connected
@@ -89,13 +89,13 @@ class CoreConfig(AppConfig):
 
                 # Health check task - runs every 10 minutes
                 health_check_task, created = PeriodicTask.objects.get_or_create(
-                    name='Health Check',
+                    name="Health Check",
                     defaults={
-                        'task': 'apps.core.tasks.health_check',
-                        'interval': every_10_minutes,
-                        'enabled': True,
-                        'description': 'Periodic health check for system monitoring',
-                    }
+                        "task": "apps.core.tasks.health_check",
+                        "interval": every_10_minutes,
+                        "enabled": True,
+                        "description": "Periodic health check for system monitoring",
+                    },
                 )
                 if not created and health_check_task.interval != every_10_minutes:
                     health_check_task.interval = every_10_minutes
@@ -103,13 +103,13 @@ class CoreConfig(AppConfig):
 
                 # Cache cleanup task - runs daily
                 cache_cleanup_task, created = PeriodicTask.objects.get_or_create(
-                    name='Clear Expired Cache',
+                    name="Clear Expired Cache",
                     defaults={
-                        'task': 'apps.core.tasks.clear_expired_cache',
-                        'interval': daily,
-                        'enabled': True,
-                        'description': 'Clear expired cache entries daily',
-                    }
+                        "task": "apps.core.tasks.clear_expired_cache",
+                        "interval": daily,
+                        "enabled": True,
+                        "description": "Clear expired cache entries daily",
+                    },
                 )
                 if not created and cache_cleanup_task.interval != daily:
                     cache_cleanup_task.interval = daily
@@ -121,5 +121,6 @@ class CoreConfig(AppConfig):
         except Exception as e:
             # Log the error but don't break app startup
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Failed to register Celery beat schedules: {e}")

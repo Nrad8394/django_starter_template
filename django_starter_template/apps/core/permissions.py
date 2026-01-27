@@ -1,6 +1,7 @@
 """
 Core permissions for Django Starter Template
 """
+
 from rest_framework import permissions
 
 
@@ -15,7 +16,11 @@ class IsStaffOrReadOnly(permissions.BasePermission):
             return request.user and request.user.is_authenticated
 
         # Write permissions are only allowed to staff users
-        return request.user and request.user.is_authenticated and request.user.is_staff_member
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_staff_member
+        )
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
@@ -32,7 +37,7 @@ class IsOwnerOrStaff(permissions.BasePermission):
             return True
 
         # Write permissions are only allowed to the owner or staff
-        if hasattr(obj, 'created_by'):
+        if hasattr(obj, "created_by"):
             return obj.created_by == request.user or request.user.is_staff_member
 
         # Fallback for objects without created_by field
@@ -50,7 +55,11 @@ class IsAdminOrReadOnly(permissions.BasePermission):
             return request.user and request.user.is_authenticated
 
         # Write permissions are only allowed to admin users
-        return request.user and request.user.is_authenticated and request.user.is_admin_or_above
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_admin_or_above
+        )
 
 
 class IsSupervisorOrAbove(permissions.BasePermission):
@@ -60,9 +69,9 @@ class IsSupervisorOrAbove(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return (
-            request.user and
-            request.user.is_authenticated and
-            request.user.is_supervisor_or_above
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_supervisor_or_above
         )
 
 
@@ -73,9 +82,9 @@ class IsStaffMember(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return (
-            request.user and
-            request.user.is_authenticated and
-            request.user.is_staff_member
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_staff_member
         )
 
 
@@ -96,16 +105,16 @@ class CanManageIncidents(permissions.BasePermission):
 
         # Staff can manage assigned incidents or their own created incidents
         if user.is_staff_member:
-            if hasattr(obj, 'assigned_to') and obj.assigned_to == user:
+            if hasattr(obj, "assigned_to") and obj.assigned_to == user:
                 return True
-            if hasattr(obj, 'created_by') and obj.created_by == user:
+            if hasattr(obj, "created_by") and obj.created_by == user:
                 return True
 
         # Regular users can only view/edit their own incidents in limited ways
-        if hasattr(obj, 'created_by') and obj.created_by == user:
+        if hasattr(obj, "created_by") and obj.created_by == user:
             # Residents can only edit new incidents
             if request.method in permissions.SAFE_METHODS:
                 return True
-            return obj.status == 'new'
+            return obj.status == "new"
 
         return False

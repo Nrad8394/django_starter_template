@@ -1,6 +1,7 @@
 """
 Constants for the accounts app
 """
+
 from django.utils.translation import gettext_lazy as _
 
 
@@ -8,68 +9,81 @@ from django.utils.translation import gettext_lazy as _
 class UserRoleConstants:
     """Constants for user roles"""
 
-    # Basic roles - can be customized per project
-    STAFF = 'staff'
-    MANAGER = 'manager'
-    ADMIN = 'admin'
-    SUPER_ADMIN = 'super_admin'
+    # Role constants
+    ADMIN = "admin"
 
     # Role choices for forms and validation
     ROLE_CHOICES = [
-        (STAFF, _('Staff')),
-        (MANAGER, _('Manager')),
-        (ADMIN, _('Administrator')),
-        (SUPER_ADMIN, _('Super Administrator')),
+        (ADMIN, "Admin"),
     ]
 
-    # Default role for new users
-    DEFAULT_ROLE = STAFF
+    # Default role for new users/ change to lowest role as needed
+    DEFAULT_ROLE = ADMIN
 
 
 # Role Definitions for Management Commands
 ROLE_DEFINITIONS = {
-    UserRoleConstants.STAFF: {
-        'description': _('Basic staff member with limited access'),
-        'display_name': _('Staff'),
-        'permissions': [
-            'view_user',
-            'view_userprofile',
-        ]
-    },
-    UserRoleConstants.MANAGER: {
-        'description': _('Manager with additional permissions to manage team members'),
-        'display_name': _('Manager'),
-        'permissions': [
-            'view_user',
-            'change_user',
-            'view_userprofile',
-            'change_userprofile',
-            'view_userrole',
-        ]
-    },
     UserRoleConstants.ADMIN: {
-        'description': _('Administrator with full access to user management'),
-        'display_name': _('Admin'),
-        'permissions': [
-            'view_user',
-            'add_user',
-            'change_user',
-            'delete_user',
-            'view_userprofile',
-            'add_userprofile',
-            'change_userprofile',
-            'delete_userprofile',
-            'view_userrole',
-            'add_userrole',
-            'change_userrole',
-            'delete_userrole',
-        ]
+        "description": _("Administrator with full access to user management"),
+        "display_name": _("Admin"),
+        "permissions": [
+            # Accounts - Full access
+            "view_user",
+            "add_user",
+            "change_user",
+            "delete_user",
+            "view_userprofile",
+            "add_userprofile",
+            "change_userprofile",
+            "delete_userprofile",
+            "view_userrole",
+            "add_userrole",
+            "change_userrole",
+            "delete_userrole",
+            "view_usersession",
+            "delete_usersession",
+            "view_loginattempt",
+            "view_userrolehistory",
+            "can_view_dashboard",
+            "accounts.can_view_accounts_module",
+            "accounts.can_view_institution_module",
+            "accounts.can_view_academics_module",
+            "accounts.can_view_scheduling_module",
+            "accounts.can_view_attendance_module",
+            "accounts.can_view_security_module",
+            "can_manage_users",
+            "can_assign_roles",
+            "can_view_all_users",
+            "can_manage_permissions",
+            "can_manage_roles",
+            # Notifications - Full access
+            "view_notification",
+            "add_notification",
+            "change_notification",
+            "delete_notification",
+            "view_notificationtemplate",
+            "add_notificationtemplate",
+            "change_notificationtemplate",
+            "delete_notificationtemplate",
+            "view_notificationdelivery",
+            "view_notificationpreference",
+            "change_notificationpreference",
+            "view_notificationevent",
+            # Security - Full access
+            "view_auditlog",
+            "view_ratelimit",
+            "view_securityevent",
+            "add_securityevent",
+            "change_securityevent",
+            "delete_securityevent",
+            "view_securitysettings",
+            "change_securitysettings",
+            "view_apikey",
+            "add_apikey",
+            "change_apikey",
+            "delete_apikey",
+        ],
     },
-    UserRoleConstants.SUPER_ADMIN: {
-        'description': _('Super administrator with all permissions'),
-        'display_name': _('Super Admin'),
-        'permissions': []  # Super admin gets all permissions automatically
-    }
 }
 
 
@@ -78,59 +92,51 @@ class PermissionConstants:
     """Constants for permission codenames"""
 
     # User permissions
-    VIEW_USER = 'view_user'
-    ADD_USER = 'add_user'
-    CHANGE_USER = 'change_user'
-    DELETE_USER = 'delete_user'
+    VIEW_USER = "view_user"
+    ADD_USER = "add_user"
+    CHANGE_USER = "change_user"
+    DELETE_USER = "delete_user"
 
     # User role permissions
-    VIEW_USERROLE = 'view_userrole'
-    ADD_USERROLE = 'add_userrole'
-    CHANGE_USERROLE = 'change_userrole'
-    DELETE_USERROLE = 'delete_userrole'
+    VIEW_USERROLE = "view_userrole"
+    ADD_USERROLE = "add_userrole"
+    CHANGE_USERROLE = "change_userrole"
+    DELETE_USERROLE = "delete_userrole"
 
     # User profile permissions
-    VIEW_USERPROFILE = 'view_userprofile'
-    ADD_USERPROFILE = 'add_userprofile'
-    CHANGE_USERPROFILE = 'change_userprofile'
-    DELETE_USERPROFILE = 'delete_userprofile'
+    VIEW_USERPROFILE = "view_userprofile"
+    ADD_USERPROFILE = "add_userprofile"
+    CHANGE_USERPROFILE = "change_userprofile"
+    DELETE_USERPROFILE = "delete_userprofile"
 
     # User session permissions
-    VIEW_USERSESSION = 'view_usersession'
-    ADD_USERSESSION = 'add_usersession'
-    CHANGE_USERSESSION = 'change_usersession'
-    DELETE_USERSESSION = 'delete_usersession'
+    VIEW_USERSESSION = "view_usersession"
+    ADD_USERSESSION = "add_usersession"
+    CHANGE_USERSESSION = "change_usersession"
+    DELETE_USERSESSION = "delete_usersession"
 
     # Login attempt permissions
-    VIEW_LOGINATTEMPT = 'accounts.view_loginattempt'
-    ADD_LOGINATTEMPT = 'accounts.add_loginattempt'
-    CHANGE_LOGINATTEMPT = 'accounts.change_loginattempt'
-    DELETE_LOGINATTEMPT = 'accounts.delete_loginattempt'
+    VIEW_LOGINATTEMPT = "accounts.view_loginattempt"
+    ADD_LOGINATTEMPT = "accounts.add_loginattempt"
+    CHANGE_LOGINATTEMPT = "accounts.change_loginattempt"
+    DELETE_LOGINATTEMPT = "accounts.delete_loginattempt"
 
     # Special permissions
-    CAN_MANAGE_USERS = 'accounts.can_manage_users'
-    CAN_VIEW_DASHBOARD = 'accounts.can_view_dashboard'
-    CAN_APPROVE_USERS = 'accounts.can_approve_users'
-    CAN_CHANGE_USER_ROLES = 'accounts.can_change_user_roles'
+    CAN_MANAGE_USERS = "accounts.can_manage_users"
+    CAN_VIEW_DASHBOARD = "accounts.can_view_dashboard"
+    CAN_APPROVE_USERS = "accounts.can_approve_users"
+    CAN_CHANGE_USER_ROLES = "accounts.can_change_user_roles"
+    CAN_MANAGE_PERMISSIONS = "accounts.can_manage_permissions"
+    CAN_MANAGE_ROLES = "accounts.can_manage_roles"
+    CAN_VIEW_ALL_USERS = "accounts.can_view_all_users"
+
+    # Module access permissions
+    CAN_VIEW_ACCOUNTS_MODULE = "accounts.can_view_accounts_module"
+    CAN_VIEW_SECURITY_MODULE = "accounts.can_view_security_module"
 
 
 # Default role permissions mapping
 DEFAULT_ROLE_PERMISSIONS = {
-    UserRoleConstants.STAFF: [
-        PermissionConstants.VIEW_USER,
-        PermissionConstants.CAN_VIEW_DASHBOARD,
-    ],
-    UserRoleConstants.MANAGER: [
-        PermissionConstants.VIEW_USER,
-        PermissionConstants.ADD_USER,
-        PermissionConstants.CHANGE_USER,
-        PermissionConstants.VIEW_USERPROFILE,
-        PermissionConstants.ADD_USERPROFILE,
-        PermissionConstants.CHANGE_USERPROFILE,
-        PermissionConstants.CAN_MANAGE_USERS,
-        PermissionConstants.CAN_VIEW_DASHBOARD,
-        PermissionConstants.CAN_APPROVE_USERS,
-    ],
     UserRoleConstants.ADMIN: [
         # Full access to accounts app
         PermissionConstants.VIEW_USER,
@@ -157,10 +163,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         PermissionConstants.CAN_VIEW_DASHBOARD,
         PermissionConstants.CAN_APPROVE_USERS,
         PermissionConstants.CAN_CHANGE_USER_ROLES,
-    ],
-    UserRoleConstants.SUPER_ADMIN: [
-        # All permissions across the system
-        '*',
+        PermissionConstants.CAN_VIEW_ACCOUNTS_MODULE,
+        PermissionConstants.CAN_VIEW_SECURITY_MODULE,
     ],
 }
 
@@ -169,16 +173,16 @@ DEFAULT_ROLE_PERMISSIONS = {
 class UserStatusConstants:
     """Constants for user status and approval states"""
 
-    PENDING = 'pending'
-    APPROVED = 'approved'
-    REJECTED = 'rejected'
-    SUSPENDED = 'suspended'
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SUSPENDED = "suspended"
 
     STATUS_CHOICES = [
-        (PENDING, _('Pending Approval')),
-        (APPROVED, _('Approved')),
-        (REJECTED, _('Rejected')),
-        (SUSPENDED, _('Suspended')),
+        (PENDING, _("Pending Approval")),
+        (APPROVED, _("Approved")),
+        (REJECTED, _("Rejected")),
+        (SUSPENDED, _("Suspended")),
     ]
 
 
@@ -208,15 +212,25 @@ class APIConstants:
     MAX_PAGE_SIZE = 100
 
     # Ordering options
-    USER_ORDERING_FIELDS = ['created_at', 'last_login', 'email', 'first_name', 'last_name', 'employee_id']
-    ROLE_ORDERING_FIELDS = ['name', 'created_at', 'is_active']
-    PROFILE_ORDERING_FIELDS = ['created_at', 'updated_at', 'user__email']
-    SESSION_ORDERING_FIELDS = ['created_at', 'last_activity', 'user__email']
-    LOGIN_ATTEMPT_ORDERING_FIELDS = ['created_at', 'user__email', 'success']
+    USER_ORDERING_FIELDS = [
+        "created_at",
+        "last_login",
+        "email",
+        "first_name",
+        "last_name",
+        "user_id",
+    ]
+    ROLE_ORDERING_FIELDS = ["name", "created_at", "is_active"]
+    PROFILE_ORDERING_FIELDS = ["created_at", "updated_at", "user__email"]
+    SESSION_ORDERING_FIELDS = ["created_at", "last_activity", "user__email"]
+    LOGIN_ATTEMPT_ORDERING_FIELDS = ["created_at", "user__email", "success"]
 
     # Search fields
-    USER_SEARCH_FIELDS = ['email', 'first_name', 'last_name', 'employee_id']
-    ROLE_SEARCH_FIELDS = ['name', 'display_name', 'description']
-    PROFILE_SEARCH_FIELDS = ['user__email', 'user__first_name', 'user__last_name', 'bio']
-    SESSION_SEARCH_FIELDS = ['user__email', 'user__first_name', 'user__last_name', 'ip_address']
-    LOGIN_ATTEMPT_SEARCH_FIELDS = ['user__email', 'user__first_name', 'user__last_name', 'ip_address']
+    USER_SEARCH_FIELDS = ["email", "first_name", "last_name", "username"]
+    ROLE_SEARCH_FIELDS = ["name", "display_name", "description"]
+    PROFILE_SEARCH_FIELDS = [
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "bio",
+    ]

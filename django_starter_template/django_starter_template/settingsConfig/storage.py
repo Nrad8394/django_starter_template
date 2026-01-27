@@ -21,8 +21,10 @@ logger = logging.getLogger(__name__)
 # STORAGE BACKEND TYPES
 # =============================================================================
 
+
 class StorageBackend(Enum):
     """Storage backend types"""
+
     MINIO = "minio"
     S3 = "s3"
     AZURE = "azure"
@@ -32,6 +34,7 @@ class StorageBackend(Enum):
 # =============================================================================
 # GENERIC STORAGE INTERFACE
 # =============================================================================
+
 
 class BaseStorage:
     """
@@ -88,12 +91,13 @@ class MinioStorage(BaseStorage):
         """Establish MinIO connection"""
         try:
             from minio import Minio
+
             self.client = Minio(
                 endpoint=self.endpoint,
                 access_key=self.access_key,
                 secret_key=self.secret_key,
                 secure=self.secure,
-                region=self.region
+                region=self.region,
             )
             logger.info(f"Connected to MinIO at {self.endpoint}")
         except ImportError:
@@ -172,9 +176,9 @@ class MinioStorage(BaseStorage):
             raise
 
 
-class S3Storage(BaseStorage):
+class S3StorageImpl(BaseStorage):
     """
-    AWS S3 storage implementation
+    AWS S3 storage implementation (placeholder)
     """
 
     def __init__(self):
@@ -239,7 +243,7 @@ class LocalStorage(BaseStorage):
 
     def __init__(self):
         super().__init__()
-        self.base_path = os.path.join(os.getcwd(), 'storage')
+        self.base_path = os.path.join(os.getcwd(), "storage")
         os.makedirs(self.base_path, exist_ok=True)
         logger.info(f"Local storage initialized at: {self.base_path}")
 
@@ -256,6 +260,7 @@ class LocalStorage(BaseStorage):
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
         import shutil
+
         shutil.copy2(file_path, dest_path)
         logger.info(f"Copied {file_path} to {dest_path}")
         return f"{bucket}/{key}"
@@ -270,6 +275,7 @@ class LocalStorage(BaseStorage):
 
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         import shutil
+
         shutil.copy2(source_path, file_path)
         logger.info(f"Copied {source_path} to {file_path}")
         return True
@@ -325,20 +331,21 @@ BACKUP_BUCKET = "backups"
 # =============================================================================
 
 # Redis Connection Settings
-REDIS_HOST = config("REDIS_HOST", default="localhost")
+REDIS_HOST = config("REDIS_HOST", default="127.0.0.1")
 REDIS_PORT = config("REDIS_PORT", default=6379, cast=int)
-REDIS_DB = config("REDIS_DB", default=1, cast=int)  # DB 1 for RAG, DB 0 for Celery
+REDIS_DB = config("REDIS_DB", default=0, cast=int)
 REDIS_PASSWORD = config("REDIS_PASSWORD", default=None)
 REDIS_SSL = config("REDIS_SSL", default="false", cast=bool)
 
 # Redis URLs for different purposes
-REDIS_URL = f"redis://{'localhost' if REDIS_HOST == 'localhost' else REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 if REDIS_PASSWORD:
-    REDIS_URL = f"redis://:{REDIS_PASSWORD}@{'localhost' if REDIS_HOST == 'localhost' else REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+    REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 # =============================================================================
 # STORAGE FACTORY
 # =============================================================================
+
 
 class StorageFactory:
     """
@@ -349,7 +356,7 @@ class StorageFactory:
         StorageBackend.MINIO: "Minio",
         StorageBackend.S3: "S3",
         StorageBackend.AZURE: "Azure",
-        StorageBackend.LOCAL: "Local"
+        StorageBackend.LOCAL: "Local",
     }
 
     @classmethod
@@ -372,7 +379,9 @@ class StorageFactory:
 
         storage_class = class_map.get(storage_type)
         if not storage_class:
-            raise ValueError(f"Unsupported storage type: {storage_type}. Available: {list(class_map.keys())}")
+            raise ValueError(
+                f"Unsupported storage type: {storage_type}. Available: {list(class_map.keys())}"
+            )
 
         logger.info(f"Initializing storage backend: {storage_type.value}")
         instance = storage_class()
@@ -392,7 +401,9 @@ class StorageFactory:
         try:
             storage_type = StorageBackend[storage_type_str]
         except KeyError:
-            logger.warning(f"Unknown storage type '{storage_type_str}', defaulting to MINIO")
+            logger.warning(
+                f"Unknown storage type '{storage_type_str}', defaulting to MINIO"
+            )
             storage_type = StorageBackend.MINIO
 
         return cls.create(storage_type)
@@ -401,6 +412,7 @@ class StorageFactory:
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def get_storage_impl():
     """
@@ -414,7 +426,9 @@ def get_storage_impl():
     try:
         storage_type = StorageBackend[storage_impl_type]
     except KeyError:
-        logger.warning(f"Unknown STORAGE_BACKEND '{storage_impl_type}', defaulting to MINIO")
+        logger.warning(
+            f"Unknown STORAGE_BACKEND '{storage_impl_type}', defaulting to MINIO"
+        )
         storage_type = StorageBackend.MINIO
 
     return StorageFactory.create(storage_type)
@@ -433,7 +447,7 @@ def get_redis_connection():
         db=REDIS_DB,
         password=REDIS_PASSWORD,
         ssl=REDIS_SSL,
-        decode_responses=True
+        decode_responses=True,
     )
 
 
@@ -446,15 +460,15 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "minioadmin")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin")
 AWS_STORAGE_BUCKET_NAME = os.getenv("MINIO_MEDIA_BUCKET", "media")
 AWS_S3_ENDPOINT_URL = f"http://{os.getenv('MINIO_ENDPOINT', 'localhost:9000')}"
-AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN')
-AWS_LOCATION = 'media'
+AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN")
+AWS_LOCATION = ""  # Empty location to avoid duplication - upload_to paths are used directly
 AWS_DEFAULT_ACL = None
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = 'us-east-1'
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_REGION_NAME = "us-east-1"
 
 # Configure custom storage
 AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
+    "CacheControl": "max-age=86400",
 }
 
 # Custom MinIO Storage with public URL generation
@@ -465,34 +479,48 @@ try:
 
     class PublicMinIOStorage(S3Storage):
         """
-        Custom S3Storage that generates public URLs while using internal MinIO endpoint
+        Custom S3Storage that generates public URLs while using internal MinIO endpoint.
+        Uses unsigned public URLs since the bucket is configured for public read access.
         """
+
         def url(self, name, parameters=None, expire=None, http_method=None):
             """
-            Generate URL with public domain instead of internal MinIO endpoint
+            Generate unsigned public URL for the file.
+            Since bucket policy allows public read access, we don't need signed URLs.
             """
-            custom_domain = getattr(self, 'custom_domain', None)
+            # If custom domain is set, use that for public URLs
+            custom_domain = getattr(self, "custom_domain", None)
             if custom_domain:
-                protocol = 'https' if getattr(self, 'secure_urls', True) else 'http'
-                url = f"{protocol}://{custom_domain}"
-                if self.location:
-                    url += f"/{self.location}/{name}"
-                else:
-                    url += f"/{name}"
+                protocol = "https" if getattr(self, "secure_urls", True) else "http"
+                url = f"{protocol}://{custom_domain}/{name}"
                 return url
 
-            return super().url(name, parameters, expire, http_method)
+            # Otherwise, generate unsigned public URL from MinIO endpoint
+            # This works because the bucket policy allows s3:GetObject for "*"
+            bucket_name = self.bucket_name
+            endpoint = self.endpoint_url
+            
+            # Remove trailing slash from endpoint if present
+            if endpoint.endswith("/"):
+                endpoint = endpoint[:-1]
+            
+            # Construct the unsigned public URL
+            # Format: http://minio-endpoint/bucket-name/object-path
+            url = f"{endpoint}/{bucket_name}/{name}"
+            return url
 
     S3_AVAILABLE = True
 
 except ImportError:
-    logger.warning("boto3 or django-storages S3 backend not available. S3/MinIO storage disabled.")
+    logger.warning(
+        "boto3 or django-storages S3 backend not available. S3/MinIO storage disabled."
+    )
     PublicMinIOStorage = None
     S3_AVAILABLE = False
 
 # Configure custom storage
-if os.getenv('AWS_S3_CUSTOM_DOMAIN') and PublicMinIOStorage and S3_AVAILABLE:
-    PublicMinIOStorage.custom_domain = os.getenv('AWS_S3_CUSTOM_DOMAIN')
+if os.getenv("AWS_S3_CUSTOM_DOMAIN") and PublicMinIOStorage and S3_AVAILABLE:
+    PublicMinIOStorage.custom_domain = os.getenv("AWS_S3_CUSTOM_DOMAIN")
 
 # Django STORAGES configuration
 if PublicMinIOStorage and S3_AVAILABLE:

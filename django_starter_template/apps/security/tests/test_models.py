@@ -3,8 +3,12 @@ from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from apps.security.models import (
-    AuditLog, RateLimit, SecurityEvent, SecuritySettings,
-    APIKey, EncryptedField
+    AuditLog,
+    RateLimit,
+    SecurityEvent,
+    SecuritySettings,
+    APIKey,
+    EncryptedField,
 )
 from datetime import timedelta
 
@@ -17,8 +21,7 @@ class AuditLogModelTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123'
+            email="test@example.com", password="testpass123"
         )
 
     def test_audit_log_creation(self):
@@ -27,9 +30,9 @@ class AuditLogModelTest(TestCase):
             user=self.user,
             event_type=AuditLog.EventType.LOGIN,
             severity=AuditLog.Severity.LOW,
-            description='Test login',
-            ip_address='192.168.1.1',
-            user_agent='Test Agent'
+            description="Test login",
+            ip_address="192.168.1.1",
+            user_agent="Test Agent",
         )
 
         self.assertEqual(audit_log.user, self.user)
@@ -42,8 +45,8 @@ class AuditLogModelTest(TestCase):
         audit_log = AuditLog.objects.create(
             event_type=AuditLog.EventType.FAILED_LOGIN,
             severity=AuditLog.Severity.MEDIUM,
-            description='Failed login attempt',
-            ip_address='192.168.1.1'
+            description="Failed login attempt",
+            ip_address="192.168.1.1",
         )
 
         self.assertIsNone(audit_log.user)
@@ -57,15 +60,15 @@ class RateLimitModelTest(TestCase):
         """Test creating a rate limit entry"""
         rate_limit = RateLimit.objects.create(
             limit_type=RateLimit.LimitType.IP,
-            identifier='192.168.1.1',
-            endpoint='/api/test/',
+            identifier="192.168.1.1",
+            endpoint="/api/test/",
             request_count=5,
             window_start=timezone.now(),
-            window_end=timezone.now() + timedelta(minutes=1)
+            window_end=timezone.now() + timedelta(minutes=1),
         )
 
         self.assertEqual(rate_limit.limit_type, RateLimit.LimitType.IP)
-        self.assertEqual(rate_limit.identifier, '192.168.1.1')
+        self.assertEqual(rate_limit.identifier, "192.168.1.1")
         self.assertEqual(rate_limit.request_count, 5)
         self.assertFalse(rate_limit.is_blocked)
 
@@ -73,13 +76,13 @@ class RateLimitModelTest(TestCase):
         """Test blocked rate limit"""
         rate_limit = RateLimit.objects.create(
             limit_type=RateLimit.LimitType.IP,
-            identifier='192.168.1.1',
-            endpoint='/api/test/',
+            identifier="192.168.1.1",
+            endpoint="/api/test/",
             request_count=100,
             window_start=timezone.now(),
             window_end=timezone.now() + timedelta(minutes=1),
             is_blocked=True,
-            blocked_until=timezone.now() + timedelta(minutes=15)
+            blocked_until=timezone.now() + timedelta(minutes=15),
         )
 
         self.assertTrue(rate_limit.is_blocked)
@@ -89,16 +92,12 @@ class RateLimitModelTest(TestCase):
         """Test the is_expired property"""
         # Not expired
         future_time = timezone.now() + timedelta(minutes=1)
-        rate_limit = RateLimit(
-            window_end=future_time
-        )
+        rate_limit = RateLimit(window_end=future_time)
         self.assertFalse(rate_limit.is_expired)
 
         # Expired
         past_time = timezone.now() - timedelta(minutes=1)
-        rate_limit = RateLimit(
-            window_end=past_time
-        )
+        rate_limit = RateLimit(window_end=past_time)
         self.assertTrue(rate_limit.is_expired)
 
 
@@ -107,19 +106,18 @@ class SecurityEventModelTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123'
+            email="test@example.com", password="testpass123"
         )
 
     def test_security_event_creation(self):
         """Test creating a security event"""
         event = SecurityEvent.objects.create(
             event_type=SecurityEvent.EventType.BRUTE_FORCE,
-            title='Brute force attack detected',
-            description='Multiple failed login attempts',
+            title="Brute force attack detected",
+            description="Multiple failed login attempts",
             severity=AuditLog.Severity.HIGH,
-            ip_address='192.168.1.1',
-            user=self.user
+            ip_address="192.168.1.1",
+            user=self.user,
         )
 
         self.assertEqual(event.event_type, SecurityEvent.EventType.BRUTE_FORCE)
@@ -130,17 +128,17 @@ class SecurityEventModelTest(TestCase):
         """Test resolving a security event"""
         event = SecurityEvent.objects.create(
             event_type=SecurityEvent.EventType.BRUTE_FORCE,
-            title='Brute force attack detected',
-            description='Multiple failed login attempts',
-            severity=AuditLog.Severity.HIGH
+            title="Brute force attack detected",
+            description="Multiple failed login attempts",
+            severity=AuditLog.Severity.HIGH,
         )
 
-        event.resolve(self.user, 'Resolved by admin')
+        event.resolve(self.user, "Resolved by admin")
 
         self.assertEqual(event.status, SecurityEvent.Status.RESOLVED)
         self.assertEqual(event.resolved_by, self.user)
         self.assertIsNotNone(event.resolved_at)
-        self.assertEqual(event.resolution_notes, 'Resolved by admin')
+        self.assertEqual(event.resolution_notes, "Resolved by admin")
 
 
 class SecuritySettingsModelTest(TestCase):
@@ -150,16 +148,16 @@ class SecuritySettingsModelTest(TestCase):
         """Test creating security settings"""
         settings = SecuritySettings.objects.create(
             setting_type=SecuritySettings.SettingType.RATE_LIMIT,
-            name='Test Rate Limit',
-            description='Test rate limiting settings',
-            config={'requests_per_minute': 100},
-            is_enabled=True
+            name="Test Rate Limit",
+            description="Test rate limiting settings",
+            config={"requests_per_minute": 100},
+            is_enabled=True,
         )
 
         self.assertEqual(settings.setting_type, SecuritySettings.SettingType.RATE_LIMIT)
-        self.assertEqual(settings.name, 'Test Rate Limit')
+        self.assertEqual(settings.name, "Test Rate Limit")
         self.assertTrue(settings.is_enabled)
-        self.assertEqual(settings.config['requests_per_minute'], 100)
+        self.assertEqual(settings.config["requests_per_minute"], 100)
 
 
 class APIKeyModelTest(TestCase):
@@ -167,21 +165,20 @@ class APIKeyModelTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123'
+            email="test@example.com", password="testpass123"
         )
 
     def test_api_key_creation(self):
         """Test creating an API key"""
         api_key = APIKey.objects.create(
-            name='Test API Key',
+            name="Test API Key",
             key_type=APIKey.KeyType.USER,
             user=self.user,
-            permissions={'read': True, 'write': False},
-            rate_limit=1000
+            permissions={"read": True, "write": False},
+            rate_limit=1000,
         )
 
-        self.assertEqual(api_key.name, 'Test API Key')
+        self.assertEqual(api_key.name, "Test API Key")
         self.assertEqual(api_key.key_type, APIKey.KeyType.USER)
         self.assertEqual(api_key.user, self.user)
         self.assertEqual(len(api_key.key), 64)  # Should be 64 characters
@@ -192,22 +189,16 @@ class APIKeyModelTest(TestCase):
         """Test API key expiration"""
         # Not expired
         future_date = timezone.now() + timedelta(days=30)
-        api_key = APIKey(
-            expires_at=future_date
-        )
+        api_key = APIKey(expires_at=future_date)
         self.assertFalse(api_key.is_expired)
 
         # Expired
         past_date = timezone.now() - timedelta(days=1)
-        api_key = APIKey(
-            expires_at=past_date
-        )
+        api_key = APIKey(expires_at=past_date)
         self.assertTrue(api_key.is_expired)
 
         # No expiration
-        api_key = APIKey(
-            expires_at=None
-        )
+        api_key = APIKey(expires_at=None)
         self.assertFalse(api_key.is_expired)
 
     def test_api_key_generate_key(self):

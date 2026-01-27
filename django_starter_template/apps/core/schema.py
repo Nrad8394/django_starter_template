@@ -14,64 +14,41 @@ common_responses = {
         description="Bad request - invalid input",
         response={
             "type": "object",
-            "properties": {
-                "type": {"type": "string"},
-                "errors": {"type": "object"}
-            }
-        }
+            "properties": {"type": {"type": "string"}, "errors": {"type": "object"}},
+        },
     ),
     401: OpenApiResponse(
         description="Authentication required",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
     ),
     403: OpenApiResponse(
         description="Permission denied",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
     ),
     404: OpenApiResponse(
         description="Resource not found",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
     ),
     500: OpenApiResponse(
         description="Server error",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
-    )
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
+    ),
 }
 
 
 pagination_parameters = [
     OpenApiParameter(
-        name='page',
+        name="page",
         type=OpenApiTypes.INT,
         location=OpenApiParameter.QUERY,
-        description='Page number',
+        description="Page number",
         required=False,
     ),
     OpenApiParameter(
-        name='page_size',
+        name="page_size",
         type=OpenApiTypes.INT,
         location=OpenApiParameter.QUERY,
-        description='Number of items per page',
+        description="Number of items per page",
         required=False,
     ),
 ]
@@ -79,72 +56,61 @@ pagination_parameters = [
 workflow_responses = {
     **common_responses,
     422: {
-        'description': "Invalid workflow transition",
-        'content': {
-            'application/json': {
-                'schema': {
-                    'type': 'object',
-                    'properties': {
-                        'detail': {'type': 'string'}
-                    }
+        "description": "Invalid workflow transition",
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {"detail": {"type": "string"}},
                 },
-                'examples': {
-                    'default': {
-                        'detail': 'Invalid status transition.'
-                    }
-                }
+                "examples": {"default": {"detail": "Invalid status transition."}},
             }
-        }
-    }
+        },
+    },
 }
 
 async_task_responses = {
     **common_responses,
     202: {
-        'description': "Task accepted",
-        'content': {
-            'application/json': {
-                'schema': {
-                    'type': 'object',
-                    'properties': {
-                        'task_id': {'type': 'string'},
-                        'status': {'type': 'string'}
-                    }
+        "description": "Task accepted",
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"},
+                        "status": {"type": "string"},
+                    },
                 },
-                'examples': {
-                    'default': {
-                        'task_id': 'uuid',
-                        'status': 'PENDING'
-                    }
-                }
+                "examples": {"default": {"task_id": "uuid", "status": "PENDING"}},
             }
-        }
-    }
+        },
+    },
 }
 
 file_upload_parameters = [
     OpenApiParameter(
-        name='file',
+        name="file",
         type=OpenApiTypes.BINARY,
-        location='form',
-        description='File to upload',
+        location="form",
+        description="File to upload",
         required=True,
     )
 ]
 
 filtering_parameters = [
     OpenApiParameter(
-        name='search',
+        name="search",
         type=OpenApiTypes.STR,
         location=OpenApiParameter.QUERY,
-        description='Search term',
+        description="Search term",
         required=False,
     ),
     OpenApiParameter(
-        name='ordering',
+        name="ordering",
         type=OpenApiTypes.STR,
         location=OpenApiParameter.QUERY,
-        description='Ordering field (prefix with - for descending)',
+        description="Ordering field (prefix with - for descending)",
         required=False,
     ),
 ]

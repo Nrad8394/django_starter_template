@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin.models import LogEntry
 from django.utils import timezone
 from threading import local
+
 # Note To make this work, you need to attach the request.user to the model
 #  instance before saving. One common pattern is overriding
 # perform_create / perform_update in your DRF views and setting:
@@ -17,7 +18,7 @@ _thread_locals = local()
 
 def get_current_user():
     """Get the current user from thread local storage"""
-    return getattr(_thread_locals, 'user', None)
+    return getattr(_thread_locals, "user", None)
 
 
 def set_current_user(user):
@@ -31,8 +32,8 @@ def set_audit_fields(sender, instance, **kwargs):
     Automatically set created_by and updated_by fields for models using AuditMixin
     """
     # Check if the model has audit fields
-    has_created_by = hasattr(instance, 'created_by')
-    has_updated_by = hasattr(instance, 'updated_by')
+    has_created_by = hasattr(instance, "created_by")
+    has_updated_by = hasattr(instance, "updated_by")
 
     if not (has_created_by or has_updated_by):
         return
@@ -41,7 +42,12 @@ def set_audit_fields(sender, instance, **kwargs):
     current_user = get_current_user()
 
     # For new instances, set created_by
-    if has_created_by and instance._state.adding and current_user and current_user.is_authenticated:
+    if (
+        has_created_by
+        and instance._state.adding
+        and current_user
+        and current_user.is_authenticated
+    ):
         instance.created_by = current_user
 
     # For all saves, set updated_by
@@ -64,6 +70,7 @@ def log_save(sender, instance, created, **kwargs):
             change_message="Saved via API",
         )
 
+
 @receiver(post_delete)
 def log_delete(sender, instance, **kwargs):
     user = getattr(instance, "_current_user", None)
@@ -76,3 +83,16 @@ def log_delete(sender, instance, **kwargs):
             action_flag=DELETION,
             change_message="Deleted via API",
         )
+
+#  create a signal that checks object pk  to verify no dangeraous symbol like / in it before saving normalizes with -
+@receiver(pre_save)
+def validate_object_pk(sender, instance, **kwargs):
+    if not instance.pk:
+        return  # Skip if no primary key is set
+
+    dangerous_symbols = ["/", "\\", "?", "%", "*", ":", "|", "\"", "<", ">"]
+    for symbol in dangerous_symbols:
+        if symbol in str(instance.pk):
+            raise ValueError(
+                f"Primary key '{instance.pk}' contains dangerous symbol '{symbol}'."
+            )

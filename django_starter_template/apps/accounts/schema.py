@@ -13,48 +13,25 @@ common_responses = {
         description="Bad request - invalid input",
         response={
             "type": "object",
-            "properties": {
-                "type": {"type": "string"},
-                "errors": {"type": "object"}
-            }
-        }
+            "properties": {"type": {"type": "string"}, "errors": {"type": "object"}},
+        },
     ),
     401: OpenApiResponse(
         description="Authentication required",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
     ),
     403: OpenApiResponse(
         description="Permission denied",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
     ),
     404: OpenApiResponse(
         description="Resource not found",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
     ),
     500: OpenApiResponse(
         description="Server error",
-        response={
-            "type": "object",
-            "properties": {
-                "detail": {"type": "string"}
-            }
-        }
-    )
+        response={"type": "object", "properties": {"detail": {"type": "string"}}},
+    ),
 }
 
 # User management parameters
@@ -62,26 +39,26 @@ user_parameters = [
     OpenApiParameter(
         name="search",
         type=OpenApiTypes.STR,
-        description="Search across email, name, employee_id",
-        required=False
+        description="Search across email, name, user_id",
+        required=False,
     ),
     OpenApiParameter(
         name="role_name",
         type=OpenApiTypes.STR,
         description="Filter by role name",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="is_active",
         type=OpenApiTypes.BOOL,
         description="Filter by active status",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="ordering",
         type=OpenApiTypes.STR,
         description="Order by field (prefix with - for descending)",
-        required=False
+        required=False,
     ),
 ]
 
@@ -91,19 +68,19 @@ role_parameters = [
         name="search",
         type=OpenApiTypes.STR,
         description="Search across role name and description",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="is_active",
         type=OpenApiTypes.BOOL,
         description="Filter by active status",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="ordering",
         type=OpenApiTypes.STR,
         description="Order by field (prefix with - for descending)",
-        required=False
+        required=False,
     ),
 ]
 
@@ -113,19 +90,19 @@ permission_parameters = [
         name="search",
         type=OpenApiTypes.STR,
         description="Search across permission name, codename, and description",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="content_type",
         type=OpenApiTypes.STR,
         description="Filter by content type (app.model)",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="ordering",
         type=OpenApiTypes.STR,
         description="Order by field (prefix with - for descending)",
-        required=False
+        required=False,
     ),
 ]
 
@@ -135,31 +112,31 @@ session_parameters = [
         name="search",
         type=OpenApiTypes.STR,
         description="Search across IP address and user agent",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="is_active",
         type=OpenApiTypes.BOOL,
         description="Filter by active status",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="risk_score_min",
         type=OpenApiTypes.INT,
         description="Filter by minimum risk score",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="risk_score_max",
         type=OpenApiTypes.INT,
         description="Filter by maximum risk score",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="ordering",
         type=OpenApiTypes.STR,
         description="Order by field (prefix with - for descending)",
-        required=False
+        required=False,
     ),
 ]
 
@@ -169,137 +146,137 @@ login_attempt_parameters = [
         name="search",
         type=OpenApiTypes.STR,
         description="Search across email and IP address",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="success",
         type=OpenApiTypes.BOOL,
         description="Filter by login success status",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="failure_reason",
         type=OpenApiTypes.STR,
         description="Filter by failure reason",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="ip_address",
         type=OpenApiTypes.STR,
         description="Filter by IP address",
-        required=False
+        required=False,
     ),
     OpenApiParameter(
         name="ordering",
         type=OpenApiTypes.STR,
         description="Order by field (prefix with - for descending)",
-        required=False
+        required=False,
     ),
 ]
 
 # User approval request schema
 user_approval_request = {
-    'type': 'object',
-    'properties': {
-        'notes': {
-            'type': 'string',
-            'description': 'Optional notes for the approval',
-            'maxLength': 500
+    "type": "object",
+    "properties": {
+        "notes": {
+            "type": "string",
+            "description": "Optional notes for the approval",
+            "maxLength": 500,
         }
     },
-    'required': []
+    "required": [],
 }
 
 # Role change request schema
 role_change_request = {
-    'type': 'object',
-    'properties': {
-        'role_name': {
-            'type': 'string',
-            'description': 'Name of the role to assign',
-            'maxLength': 100
+    "type": "object",
+    "properties": {
+        "role_name": {
+            "type": "string",
+            "description": "Name of the role to assign",
+            "maxLength": 100,
         },
-        'notes': {
-            'type': 'string',
-            'description': 'Optional notes for the role change',
-            'maxLength': 500
-        }
+        "notes": {
+            "type": "string",
+            "description": "Optional notes for the role change",
+            "maxLength": 500,
+        },
     },
-    'required': ['role_name']
+    "required": ["role_name"],
 }
 
 # Permission update request schema
 permission_update_request = {
-    'type': 'object',
-    'properties': {
-        'permissions': {
-            'type': 'array',
-            'items': {
-                'type': 'object',
-                'properties': {
-                    'permission_id': {'type': 'integer'},
-                    'granted': {'type': 'boolean'}
+    "type": "object",
+    "properties": {
+        "permissions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "permission_id": {"type": "integer"},
+                    "granted": {"type": "boolean"},
                 },
-                'required': ['permission_id', 'granted']
+                "required": ["permission_id", "granted"],
             },
-            'description': 'List of permissions to grant or revoke'
+            "description": "List of permissions to grant or revoke",
         },
-        'notes': {
-            'type': 'string',
-            'description': 'Optional notes for the permission change',
-            'maxLength': 500
-        }
+        "notes": {
+            "type": "string",
+            "description": "Optional notes for the permission change",
+            "maxLength": 500,
+        },
     },
-    'required': ['permissions']
+    "required": ["permissions"],
 }
 
 # User statistics response
 user_stats_response = {
     200: {
-        'description': "User statistics",
-        'content': {
-            'application/json': {
-                'schema': {
-                    'type': 'object',
-                    'properties': {
-                        'total_users': {'type': 'integer'},
-                        'active_users': {'type': 'integer'},
-                        'inactive_users': {'type': 'integer'},
-                        'users_by_role': {
-                            'type': 'object',
-                            'additionalProperties': {'type': 'integer'}
+        "description": "User statistics",
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "total_users": {"type": "integer"},
+                        "active_users": {"type": "integer"},
+                        "inactive_users": {"type": "integer"},
+                        "users_by_role": {
+                            "type": "object",
+                            "additionalProperties": {"type": "integer"},
                         },
-                        'recent_registrations': {'type': 'integer'},
-                        'pending_approvals': {'type': 'integer'}
-                    }
+                        "recent_registrations": {"type": "integer"},
+                        "pending_approvals": {"type": "integer"},
+                    },
                 }
             }
-        }
+        },
     },
-    **common_responses
+    **common_responses,
 }
 
 # Session statistics response
 session_stats_response = {
     200: {
-        'description': "Session statistics",
-        'content': {
-            'application/json': {
-                'schema': {
-                    'type': 'object',
-                    'properties': {
-                        'total_sessions': {'type': 'integer'},
-                        'active_sessions': {'type': 'integer'},
-                        'expired_sessions': {'type': 'integer'},
-                        'high_risk_sessions': {'type': 'integer'},
-                        'sessions_by_device_type': {
-                            'type': 'object',
-                            'additionalProperties': {'type': 'integer'}
-                        }
-                    }
+        "description": "Session statistics",
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "total_sessions": {"type": "integer"},
+                        "active_sessions": {"type": "integer"},
+                        "expired_sessions": {"type": "integer"},
+                        "high_risk_sessions": {"type": "integer"},
+                        "sessions_by_device_type": {
+                            "type": "object",
+                            "additionalProperties": {"type": "integer"},
+                        },
+                    },
                 }
             }
-        }
+        },
     },
-    **common_responses
+    **common_responses,
 }

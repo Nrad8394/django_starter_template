@@ -13,9 +13,9 @@ class IsOwnerOrAdmin(permissions.BasePermission):
             return True
 
         # Allow users to access their own notifications/preferences
-        if hasattr(obj, 'user'):
+        if hasattr(obj, "user"):
             return obj.user == request.user
-        elif hasattr(obj, 'recipient'):
+        elif hasattr(obj, "recipient"):
             return obj.recipient == request.user
 
         return False
@@ -36,11 +36,14 @@ class CanManageNotifications(permissions.BasePermission):
             return True
 
         # Check for specific permissions based on user roles
-        user_permissions = getattr(request.user, 'get_all_permissions', lambda: set())()
-        return any(perm in user_permissions for perm in [
-            'notifications.can_send_notifications',
-            'notifications.can_manage_notifications'
-        ])
+        user_permissions = getattr(request.user, "get_all_permissions", lambda: set())()
+        return any(
+            perm in user_permissions
+            for perm in [
+                "notifications.can_send_notifications",
+                "notifications.can_manage_notifications",
+            ]
+        )
 
 
 class CanManageTemplates(permissions.BasePermission):
@@ -63,8 +66,8 @@ class CanViewAnalytics(permissions.BasePermission):
         if request.user.is_staff or request.user.is_superuser:
             return True
 
-        user_permissions = getattr(request.user, 'get_all_permissions', lambda: set())()
-        return 'notifications.can_view_analytics' in user_permissions
+        user_permissions = getattr(request.user, "get_all_permissions", lambda: set())()
+        return "notifications.can_view_analytics" in user_permissions
 
 
 class NotificationPreferencesPermission(permissions.BasePermission):
