@@ -235,7 +235,7 @@ MINIO_CONSISTENCY_CHECK_ON_START = get_env("MINIO_CONSISTENCY_CHECK_ON_START", d
 MINIO_BUCKET_CHECK_ON_SAVE = get_env("MINIO_BUCKET_CHECK_ON_SAVE", default=True, cast=bool)
 
 from datetime import timedelta
-MINIO_URL_EXPIRY_HOURS = get_env("MINIO_URL_EXPIRY_HOURS", default=timedelta(days=1))
+MINIO_URL_EXPIRY_HOURS = timedelta(hours=get_env("MINIO_URL_EXPIRY_HOURS", default=24, cast=int))
 
 # Configure storage backends
 STORAGES = {

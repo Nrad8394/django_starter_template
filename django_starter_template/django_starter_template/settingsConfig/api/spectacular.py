@@ -1,3 +1,34 @@
+"""
+DRF Spectacular – OpenAPI 3 Schema Configuration
+=================================================
+
+Defines the ``SPECTACULAR_SETTINGS`` dictionary that controls how
+``drf_spectacular`` generates and serves the OpenAPI 3 schema for this
+project.
+
+Includes:
+- **Title / version / description**: pulled from ``SITE_NAME`` and
+  environment variables so the docs stay accurate across deployments.
+- **Authentication definitions**: ``JWTAuth`` (Bearer) and
+  ``SessionAuth`` (cookie) security schemes wired into every operation.
+- **Contact & license**: sourced from env vars
+  (``CONTACT_NAME``, ``CONTACT_EMAIL``, ``LICENSE_NAME``) so they can
+  differ between staging and production without code changes.
+- **Swagger UI / ReDoc**: pre-configured with sensible UX defaults
+  (deep linking, persistent auth, expanded models, try-it-out enabled).
+- **Tag grouping**: all API tags are declared here; endpoint groups
+  (Authentication, Users, Roles, Notifications, Security, …) each have
+  a human-readable description shown in the Swagger UI sidebar.
+- **Operation ID mapping**: explicit overrides for any endpoints that
+  would otherwise produce colliding ``operationId`` values.
+
+Access the live docs:
+  - Swagger UI  → ``/api/v1/docs/``
+  - ReDoc       → ``/api/v1/redoc/``
+  - Raw schema  → ``/api/v1/schema/``
+
+Reference: https://drf-spectacular.readthedocs.io/
+"""
 
 from ..env import get_env
 from ..base import SITE_NAME

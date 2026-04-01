@@ -99,7 +99,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 # =============================================================================
 # DEBUG TOOLBAR AND DEVELOPMENT TOOLS
 # =============================================================================
-NSTALLED_APPS += [
+INSTALLED_APPS += [
     "debug_toolbar",
     "django_browser_reload",
 ]

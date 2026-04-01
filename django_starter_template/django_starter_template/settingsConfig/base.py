@@ -47,6 +47,7 @@ ALLOWED_HOSTS = get_env(
 # Site config - Used across the project for branding (admin, API docs, etc.)
 # =============================================================================
 from .core.app_configs import *
+from .core.apps import *
 
 # =============================================================================
 # 1. Import admin Settings for admin interface 
@@ -71,7 +72,6 @@ from .auth.jwt import *
 # =============================================================================
 # 4. Import Core Settings for core Django configuration (middleware, templates, etc.)
 # =============================================================================
-from .core.apps import *
 from .core.i18n_settings import *
 from .core.middleware import *
 from .core.django_configs import *
