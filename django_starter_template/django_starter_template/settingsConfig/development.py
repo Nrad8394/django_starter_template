@@ -44,34 +44,35 @@ CSRF_COOKIE_PATH = "/"
 # DATABASE
 # =============================================================================
 # Use SQLite for easy local development (no PostgreSQL setup needed)
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#         "OPTIONS": {
-#             "timeout": 60,
-#         },
-#     }
-# }
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRES_DB", default="django_starter_template_db"),
-        "USER": config("POSTGRES_USER", default="postgres"),
-        "PASSWORD": config("POSTGRES_PASSWORD", default=""),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="5433", cast=int),
-        "CONN_MAX_AGE": 0,  # Disable persistent connections with PgBouncer
-        "CONN_HEALTH_CHECKS": True,
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+        "OPTIONS": {
+            "timeout": 60,
+        },
     }
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": get_env("POSTGRES_DB", default="django_starter_template_db"),
+#         "USER": get_env("POSTGRES_USER", default="postgres"),
+#         "PASSWORD": get_env("POSTGRES_PASSWORD", default=""),
+#         "HOST": get_env("DB_HOST", default="localhost"),
+#         "PORT": get_env("DB_PORT", default="5433", cast=int),
+#         "CONN_MAX_AGE": 0,  # Disable persistent connections with PgBouncer
+#         "CONN_HEALTH_CHECKS": True,
+#     }
+# }
 
 # =============================================================================
 # CACHING
 # =============================================================================
 # Try to use Redis, but don't fail if it's not available
 try:
-    from .storage import REDIS_URL
+    from .base import REDIS_URL
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
@@ -98,15 +99,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 # =============================================================================
 # DEBUG TOOLBAR AND DEVELOPMENT TOOLS
 # =============================================================================
-if "test" not in sys.argv:
-    INSTALLED_APPS += [
-        "debug_toolbar",
-        "django_browser_reload",
-    ]
-    MIDDLEWARE += [
-        "debug_toolbar.middleware.DebugToolbarMiddleware",
-        "django_browser_reload.middleware.BrowserReloadMiddleware",
-    ]
+NSTALLED_APPS += [
+    "debug_toolbar",
+    "django_browser_reload",
+]
+MIDDLEWARE += [
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
+    "django_browser_reload.middleware.BrowserReloadMiddleware",
+]
 
 INTERNAL_IPS = ["127.0.0.1", "localhost"]
 

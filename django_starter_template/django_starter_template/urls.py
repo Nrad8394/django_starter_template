@@ -30,16 +30,16 @@ urlpatterns = [
 
     # Django allauth URLs for email confirmation and social auth (must be at root level)
     # Override the email confirmation URL to redirect to frontend
-    path('accounts/confirm-email/<str:key>/', auth_views.EmailConfirmationRedirectView.as_view(), name='account_confirm_email'),
-    path('accounts/', include('allauth.urls')),
+    # path('accounts/confirm-email/<str:key>/', auth_views.EmailConfirmationRedirectView.as_view(), name='account_confirm_email'),
 
     # API v1 endpoints
-    path('api/v1/', include([
-        path('core/', include('apps.core.urls')),
-        path('accounts/', include('apps.accounts.urls')),
-        path('security/', include('apps.security.urls')),
-        path('notifications/', include('apps.notifications.urls')),
-    ])),
+    # path('api/v1/', include([
+    #     path('auth/', include('auth_kit.urls')),
+    #     path('core/', include('apps.core.urls')),
+    #     path('accounts/', include('apps.accounts.urls')),
+    #     path('security/', include('apps.security.urls')),
+    #     path('notifications/', include('apps.notifications.urls')),
+    # ])),
 
         # API Documentation
     path('api/v1/schema/', SpectacularAPIView.as_view(), name='schema'),

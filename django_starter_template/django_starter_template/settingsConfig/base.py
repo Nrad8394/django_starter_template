@@ -17,7 +17,8 @@ Settings hierarchy:
 
 import os
 from pathlib import Path
-from decouple import config
+
+from .env import get_env
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -25,70 +26,77 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # =============================================================================
 # SECURITY: These should be overridden in production via environment variables
 # =============================================================================
-SECRET_KEY = config(
+SECRET_KEY = os.environ.get(
     "SECRET_KEY",
-    default="django-insecure-dev-only-change-in-production",
+    "django-insecure-dev-only-change-in-production",
 )
 
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = get_env(
+    "DEBUG",
+    default=True,
+    cast=lambda v: str(v).lower() in ("true", "1", "yes", "on"),
+)
 
-ALLOWED_HOSTS = config(
+ALLOWED_HOSTS = get_env(
     "DJANGO_ALLOWED_HOSTS",
     default="localhost,127.0.0.1",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
 
 # =============================================================================
-# 1. Import Core App Configuration (CONSTANT across all environments)
+# Site config - Used across the project for branding (admin, API docs, etc.)
 # =============================================================================
-from .core import *
+from .core.app_configs import *
 
 # =============================================================================
-# 2. Import Feature Modules with defaults
+# 1. Import admin Settings for admin interface 
 # =============================================================================
-# Import services first since other modules depend on it (e.g., auth uses FRONTEND_URL)
-from .services import *
-from .auth import *
-from .api import *
-from .storage import *
-from .admin import *
-from .logging import *
-from .performance import *
+from .admin.jazzmin import *
+from .core.django_configs import *
 
 # =============================================================================
-# 3. Import Celery Configuration
+# 2. Import API Settings for REST framework and API configuration
 # =============================================================================
-from .celery_config import *
+from .api.rest import *
+from .api.spectacular import *
 
 # =============================================================================
-# 4. DATABASE: Default to SQLite (overridden in production/Development)
+# 3. Import Auth Settings for authentication and authorization configuration
 # =============================================================================
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+from .auth.rest import *
+from .auth.auth_kit import *
+from .auth.cors import *
+from .auth.jwt import *
 
 # =============================================================================
-# 5. CACHING: Default to Redis with fallback to SQLite (overridden in test)
+# 4. Import Core Settings for core Django configuration (middleware, templates, etc.)
 # =============================================================================
-# Import REDIS_URL from storage config
-from .storage import REDIS_URL
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-        "TIMEOUT": 300,  # 5 minutes default
-    }
-}
+from .core.apps import *
+from .core.i18n_settings import *
+from .core.middleware import *
+from .core.django_configs import *
 
 # =============================================================================
-# Export all public settings for composition
+# 5. Import logging configuration
 # =============================================================================
-__all__ = [name for name in globals() if not name.startswith("_")]
+from .logging.logging import *
+
+# =============================================================================
+# 6. Import external services configuration (email, Celery, etc.)
+# =============================================================================
+from .services.email import *
+from .services.celery import *
+from .services.redis import *
+
+# =============================================================================
+# 7. Import perfomance and caching settings
+# =============================================================================
+from .perfomance.performance import *
+
+# =============================================================================
+# 8. Import storage settings (e.g., for MinIO/S3)
+# =============================================================================
+from .storage.storage_settings import *
+
+
 

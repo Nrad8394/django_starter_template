@@ -9,10 +9,8 @@ This module contains Django Jazzmin admin interface configurations including:
 - UI tweaks and customization
 """
 
-from decouple import config
-
-# Get site name from environment variable with fallback
-SITE_NAME = config("SITENAME", default="Django")
+from ..env import get_env
+from ..base import SITE_NAME
 
 # Django Jazzmin Configuration
 JAZZMIN_SETTINGS = {

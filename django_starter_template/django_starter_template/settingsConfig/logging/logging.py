@@ -42,29 +42,38 @@ LOGGING = {
         "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
         "django_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": str(BASE_DIR / "logs" / "django.log"),
-            "formatter": "verbose",
+            "filename": str(LOGS_DIR / "django.log"),
+            "formatter": "json",
             "when": "midnight",  # Rotate at midnight
             "backupCount": 30,  # Keep 30 days of logs
             "delay": True,
         },
         "celery_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": str(BASE_DIR / "logs" / "celery.log"),
+            "filename": str(LOGS_DIR / "celery.log"),
             "formatter": "verbose",
             "when": "midnight",  # Rotate at midnight
             "backupCount": 30,  # Keep 30 days of logs
             "delay": True,
         },
+        "errors_file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": str(LOGS_DIR / "errors.log"),
+            "level": "ERROR",
+            "formatter": "verbose",
+            "when": "midnight",
+            "backupCount": 30,
+            "delay": True,
+        },
     },
     "root": {
-        "handlers": ["console", "django_file"],
+        "handlers": ["console", "django_file", "celery_file", "errors_file"],
         "level": "INFO",
     },
     "loggers": {
-        "django": {
+        "django.request": {
             "handlers": ["console", "django_file"],
-            "level": "INFO",  # Reduced from INFO to WARNING
+            "level": "ERROR",
             "propagate": False,
         },
         "apps": {
@@ -144,4 +153,5 @@ LOGGING = {
             "propagate": False,
         },
     },
+
 }
