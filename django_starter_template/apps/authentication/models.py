@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from apps.core.models import  BaseModel
+from apps.core.models import  BaseModel, TimestampedModel, SoftDeleteMixin
 from django.contrib.auth.models import AbstractUser, BaseUserManager, Permission
 
 # Create your models here.
@@ -76,7 +76,7 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser, BaseModel):
+class User(AbstractUser, TimestampedModel, SoftDeleteMixin):
     """
     Custom user model with email authentication and role-based access
     """
@@ -94,13 +94,16 @@ class User(AbstractUser, BaseModel):
     )
     # Role-based access control
     role = models.ForeignKey(
-        UserRole,
+        'authentication.UserRole',
         on_delete=models.PROTECT,  # Prevent deletion of role if users exist
         null=False,  # Role is REQUIRED
         blank=False,  # Must be provided
         related_name="users",
         help_text=_("User's role for permissions - REQUIRED"),
     )
+    email = models.EmailField(_("email address"), unique=True, 
+                              help_text=_("Email address used for authentication"))
+
     # Override required fields
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"
