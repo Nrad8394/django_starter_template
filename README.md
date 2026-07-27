@@ -6,7 +6,7 @@ CRUD/import/export, Celery, S3-compatible storage, OpenAPI, Docker, and CI.
 
 It is opinionated on purpose. Where a decision could go either way, the
 reasoning is in the code next to the decision, and the cross-cutting ones are
-collected in [`../PATTERNS.md`](../PATTERNS.md).
+collected in [`PATTERNS.md`](PATTERNS.md).
 
 ---
 
