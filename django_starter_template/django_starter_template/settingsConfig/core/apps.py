@@ -2,88 +2,81 @@
 Installed Applications Registry
 ================================
 
-Defines the three application groups that together form
-``INSTALLED_APPS``. Splitting them makes it easy to audit, reorder, or
-conditionally include apps in environment-specific settings.
+``INSTALLED_APPS`` split into three groups so it is obvious at a glance what
+is Django's, what is a dependency, and what is yours.
 
-Groups:
+Ordering constraints that are not obvious
+-----------------------------------------
 
-``DJANGO_APPS``
-    Core Django framework applications. ``jazzmin`` must appear first
-    because it overrides Django admin templates; placing it after
-    ``django.contrib.admin`` would break the custom admin UI.
+* ``jazzmin`` must precede ``django.contrib.admin``. It overrides admin
+  templates, and Django's template loader takes the first match — put it
+  after and the override never applies.
+* ``django_otp`` must be present whenever ``OTPMiddleware`` is in
+  ``MIDDLEWARE``. This is a real trap: the middleware imports fine on its own
+  and only fails when it touches the ORM, so the mistake surfaces as a
+  confusing runtime error on the first request rather than at startup.
+  (The version of this file that this replaces had exactly that mismatch.)
+* ``allauth.account.middleware.AccountMiddleware`` is likewise required by
+  allauth ≥0.56; the two must be enabled or disabled together.
 
-``THIRD_PARTY_APPS``
-    External packages installed from PyPI:
-    - ``rest_framework`` + ``rest_framework_simplejwt``: JWT-based API.
-    - ``corsheaders``: CORS support for frontend clients.
-    - ``drf_spectacular``: OpenAPI 3 schema generation.
-    - ``allauth`` + socialaccount providers: OAuth2 login (Google,
-      GitHub, Facebook).
-    - ``auth_kit`` (+ ``social``, ``mfa``): enhanced auth flows and
-      multi-factor authentication support.
-    - ``django_celery_beat`` / ``django_celery_results``: DB-backed
-      Celery scheduler and task result storage.
-    - ``storages``: pluggable file storage (S3/MinIO/GCS/Azure).
-
-``LOCAL_APPS``
-    First-party application modules within this repo:
-    - ``apps.core``      – shared utilities, base models, pagination.
-    - ``apps.accounts``  – custom User model, profiles, roles.
-    - ``apps.security``  – rate limiting, audit logging, IP controls.
-    - ``apps.notifications`` – in-app and email notification system.
-
-``NSTALLED_APPS`` (sic) is the combined list; it is imported by
-``base.py`` as the Django ``INSTALLED_APPS`` setting.
+Every app listed here has a startup and per-request cost. Delete what you do
+not use — a starter template is a menu, not a prescription. In particular
+``jazzmin``, the social providers, ``django_celery_beat``, ``storages`` and
+``django_extensions`` are each independently removable.
 """
 
-# Application definition - This is constant across all environments
 DJANGO_APPS = [
-    "jazzmin",  # Must be before django.contrib.admin
+    "jazzmin",  # must come before django.contrib.admin — see module docstring
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.sites",
+    "django.contrib.sites",  # required by allauth
 ]
 
 THIRD_PARTY_APPS = [
+    # --- API ---
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
-    "rest_framework_simplejwt.token_blacklist",
-    "corsheaders",
+    "rest_framework_simplejwt.token_blacklist",  # required for logout/rotation
     "django_filters",
     "drf_spectacular",
+    "corsheaders",
+    # --- Authentication ---
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+    # Social providers cost a small amount of startup time each. Enable only
+    # the ones you actually offer.
     "allauth.socialaccount.providers.google",
-    "allauth.socialaccount.providers.github",
-    "allauth.socialaccount.providers.facebook",
-    "auth_kit",
-    "auth_kit.social",  # For social authentication
-    "auth_kit.mfa",  # For MFA support
-    "django_extensions",
-    "django_redis",
-    "django_celery_beat",  # Database-backed Celery scheduler
-    "django_celery_results",
-    "storages",  # Django-storages for MinIO/S3 support
+    # "allauth.socialaccount.providers.github",
+    # "allauth.socialaccount.providers.facebook",
+    # --- Multi-factor auth ---
+    # Required by `django_otp.middleware.OTPMiddleware`. Remove both together.
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
+    # --- Background work ---
+    "django_celery_beat",  # database-backed periodic task schedule
+    "django_celery_results",  # task results in the database
+    # --- Utilities ---
+    "django_extensions",  # shell_plus, graph_models, runserver_plus
+    "storages",  # S3 / MinIO / GCS / Azure file storage
 ]
 
 LOCAL_APPS = [
     "apps.core.apps.CoreConfig",
-    "apps.authentication.apps.AuthenticationConfig",
-    # "apps.accounts.apps.AccountsConfig",
+    # Provides AUTH_USER_MODEL ("accounts.User"). Must stay enabled.
+    "apps.accounts.apps.AccountsConfig",
+    # ------------------------------------------------------------------
+    # Optional apps shipped with the template. Each is self-contained;
+    # enable what you need, then run `makemigrations`.
+    # ------------------------------------------------------------------
     # "apps.security.apps.SecurityConfig",
     # "apps.notifications.apps.NotificationsConfig",
 ]
 
-INSTALLED_APPS = (
-    DJANGO_APPS
-    + THIRD_PARTY_APPS
-    + LOCAL_APPS
-
-)
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

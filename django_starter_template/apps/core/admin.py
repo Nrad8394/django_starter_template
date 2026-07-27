@@ -143,85 +143,11 @@ class PermissionAdmin(admin.ModelAdmin):
 # Permission is already registered by Django admin
 # admin.site.register(Permission, PermissionAdmin)
 
-# System Settings Admin
-from .models import SystemSettings
-
-
-@admin.register(SystemSettings)
-class SystemSettingsAdmin(admin.ModelAdmin):
-    """Admin interface for System Settings"""
-
-    list_display = ["site_name", "maintenance_mode", "updated_at", "updated_by"]
-    readonly_fields = ["updated_at"]
-
-    fieldsets = (
-        (
-            "General Settings",
-            {
-                "fields": (
-                    "site_name",
-                    "site_url",
-                    "timezone",
-                    "date_format",
-                    "time_format",
-                )
-            },
-        ),
-        (
-            "Security Settings",
-            {
-                "fields": (
-                    "session_timeout",
-                    "max_login_attempts",
-                    "password_min_length",
-                    "require_2fa",
-                    "allow_user_registration",
-                )
-            },
-        ),
-        (
-            "Email Settings",
-            {
-                "fields": (
-                    "email_from_name",
-                    "email_from_address",
-                    "smtp_host",
-                    "smtp_port",
-                    "smtp_use_tls",
-                )
-            },
-        ),
-        (
-            "Notification Settings",
-            {
-                "fields": (
-                    "enable_email_notifications",
-                    "enable_push_notifications",
-                    "notification_retention_days",
-                )
-            },
-        ),
-        (
-            "System Settings",
-            {
-                "fields": (
-                    "maintenance_mode",
-                    "debug_mode",
-                    "log_level",
-                    "cache_enabled",
-                )
-            },
-        ),
-        ("Metadata", {"fields": ("updated_at", "updated_by")}),
-    )
-
-    def has_add_permission(self, request):
-        """Only one instance allowed (singleton)"""
-        return not SystemSettings.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        """Prevent deletion"""
-        return False
+# NOTE: a `SystemSettings` admin lived here. Both the model and its admin
+# were removed from the template: its defaults were another product's
+# (`site_name="School Management System"`, `noreply@school.com`), which
+# every generated project inherited. Subclass `apps.core.models.
+# SingletonModel` in your own app instead, and register it there.
 
 
 @admin.register(LogEntry)

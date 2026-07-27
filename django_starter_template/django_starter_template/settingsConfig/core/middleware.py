@@ -2,74 +2,73 @@
 Middleware Stack Configuration
 ================================
 
-Defines the ordered list of middleware classes applied to every HTTP
-request and response. Order matters — middleware is applied top-to-bottom
-on the request path and bottom-to-top on the response path.
+Middleware nests. The first entry is the outermost layer: it sees the request
+first and the response last. Two consequences drive the ordering below.
 
-Layer-by-layer breakdown:
+*Anything that must run even when a later layer fails goes near the top.*
+That is why request-id assignment, timing and the error envelope are the
+first three: an exception in authentication still gets an id, a duration and
+a JSON response.
 
-1. ``CorsMiddleware`` (corsheaders) — **must be first** so CORS
-   preflight responses are returned before any other processing occurs.
-2. ``SecurityMiddleware`` — adds HTTPS redirects, HSTS headers, and
-   content-type sniffing protection in production.
-3. ``SessionMiddleware`` — enables cookie-based sessions (used by
-   Django admin and allauth registration flows even when the API itself
-   is stateless).
-4. ``CommonMiddleware`` — normalises URL trailing slashes and sets the
-   ``Content-Length`` header.
-5. ``CsrfViewMiddleware`` — enforces CSRF token validation on unsafe
-   methods for session-authenticated views.
-6. ``APICSRFMiddleware`` (custom) — selectively disables CSRF for JWT-
-   authenticated API paths where cookie-based CSRF is irrelevant.
-7. ``AuthenticationMiddleware`` — attaches ``request.user`` by reading
-   the session (``AnonymousUser`` for token-only requests; the JWT
-   authentication happens inside DRF, not here).
-8. ``OTPMiddleware`` (django-otp) — annotates authenticated users with
-   their OTP device status, enabling MFA enforcement per-view.
-9. ``CurrentUserMiddleware`` (custom) — stores the current user in
-   thread-local storage for audit field auto-population in models.
-10. ``LoginSecurityMiddleware`` (custom) — enforces account lockout
-    policies and tracks failed login attempts.
-11. ``SessionActivityMiddleware`` (custom) — updates the user's last-
-    seen timestamp and detects expired/idle sessions.
-12. ``RateLimitMiddleware`` (security app) — applies per-IP and per-user
-    rate limits before the view is reached.
-13. ``AuditLogMiddleware`` (security app) — records all mutating API
-    calls to the audit log.
-14. ``AccountMiddleware`` (allauth) — required by allauth for headless
-    and MFA flows.
-15. ``MessageMiddleware`` — enables flash messages (used by admin and
-    allauth HTML error pages).
-16. ``XFrameOptionsMiddleware`` — sets the ``X-Frame-Options`` header
-    to prevent clickjacking.
-17. ``RequestTracingMiddleware`` (custom) — assigns a unique request ID
-    to each request for cross-service log correlation.
-18. ``PerformanceMiddleware`` (custom) — logs slow requests above a
-    configurable threshold.
-19. ``ErrorHandlingMiddleware`` (custom) — catches unhandled exceptions
-    and returns structured JSON error responses instead of HTML 500
-    pages.
+*Anything that depends on work an earlier layer did must come after it.*
+``CurrentUserMiddleware`` needs ``request.user``, so it must follow
+``AuthenticationMiddleware``.
+
+The stack below is the minimum that works. Custom entries are commented out
+rather than deleted so enabling one is a single-line change, and each carries
+the reason you might not want it.
 """
 
-# Middleware stack - Consistent across all environments
 MIDDLEWARE = [
+    # --- Outermost: observability and cross-origin -----------------------
+    # CorsMiddleware must precede CommonMiddleware. CommonMiddleware issues
+    # redirects (APPEND_SLASH), and a redirect without CORS headers fails the
+    # browser's preflight — presenting as an inscrutable "CORS error" on a
+    # request that was really just missing a trailing slash.
     "corsheaders.middleware.CorsMiddleware",
+    "apps.core.middleware.RequestIDMiddleware",
+    "apps.core.middleware.RequestTimingMiddleware",
+    # Returns the API error envelope for exceptions raised outside DRF's
+    # reach. Must wrap everything below it. No-ops when DEBUG is on.
+    "apps.core.middleware.APIErrorEnvelopeMiddleware",
+    # --- Django core ------------------------------------------------------
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise serves static files straight from the app process. Enable it
+    # if you are not putting a CDN or nginx in front; it must sit immediately
+    # after SecurityMiddleware.
+    # "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # CSRF applies to the session-authenticated surface: the admin, and
+    # allauth's HTML flows. The JWT API is stateless, sends no cookie
+    # credential, and is therefore not CSRF-exposed — DRF also exempts any
+    # view whose authentication is not session-based, so no custom
+    # "exempt /api/" middleware is needed. If you switch the API to cookie
+    # auth, CSRF becomes load-bearing again; do not disable it then.
     "django.middleware.csrf.CsrfViewMiddleware",
-    # "apps.core.middleware.APICSRFMiddleware",  # Custom CSRF middleware for API
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Requires `django_otp` in INSTALLED_APPS. Remove both together.
     "django_otp.middleware.OTPMiddleware",
-    # "apps.core.middleware.CurrentUserMiddleware",  # Set current user in thread locals for audit fields
-    # "apps.accounts.middleware.LoginSecurityMiddleware",  # Login security enforcement
-    # "apps.accounts.middleware.SessionActivityMiddleware",  # Track session activity
-    # "apps.security.middleware.RateLimitMiddleware",  # Rate limiting
-    # "apps.security.middleware.AuditLogMiddleware",  # Audit logging
+    # Required by allauth >= 0.56.
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # "apps.core.middleware.RequestTracingMiddleware",
-    # "apps.core.middleware.PerformanceMiddleware",
-    # "apps.core.middleware.ErrorHandlingMiddleware",
+    # --- Optional project middleware --------------------------------------
+    # Thread-local current user for model-layer audit fields. Off by default;
+    # BaseModelViewSet passes the user explicitly instead. Read the class
+    # docstring before enabling — it is empty in Celery tasks and management
+    # commands, which is how audit fields quietly end up NULL.
+    # "apps.core.middleware.CurrentUserMiddleware",
+    #
+    # From the optional `apps.security` app (enable the app first):
+    # "apps.security.middleware.RateLimitMiddleware",
+    # "apps.security.middleware.AuditLogMiddleware",
 ]
+
+#: Requests slower than this are logged at WARNING by RequestTimingMiddleware.
+#: Tighten it per environment; a threshold nothing ever crosses is a threshold
+#: that teaches you nothing.
+SLOW_REQUEST_THRESHOLD_SECONDS = 1.0
+
+#: Path prefix treated as "the API" by APIErrorEnvelopeMiddleware.
+API_PATH_PREFIX = "/api/"

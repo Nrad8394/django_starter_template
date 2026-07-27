@@ -11,7 +11,7 @@ Reference: https://django-storages.readthedocs.io/
 import os
 from ..env import get_env
 
-# Project root directory (mylandlord-backend/)
+# Project root directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 # ============================================================================
@@ -163,7 +163,7 @@ STATIC_ROOT = get_env(
 STATIC_URL = get_env('STATIC_URL', default='/static/')
 
 # Additional static file directories
-_extra_static_dir = get_env('STATICFILES_EXTRA_DIR', default=os.path.join(PROJECT_ROOT, 'mylandlord-files-static'))
+_extra_static_dir = get_env('STATICFILES_EXTRA_DIR', default=os.path.join(PROJECT_ROOT, 'extra-static'))
 STATICFILES_DIRS = [_extra_static_dir] if os.path.isdir(_extra_static_dir) else []
 
 # Static files storage backend (for collectstatic)
@@ -229,7 +229,7 @@ MINIO_HOST = get_env("MINIO_HOST", default=get_env("MINIO_STORAGE_ENDPOINT", def
 MINIO_USE_HTTPS = get_env("MINIO_USE_HTTPS", default=False, cast=bool)
 MINIO_ACCESS_KEY = get_env("MINIO_ACCESS_KEY", default=get_env("MINIO_STORAGE_ACCESS_KEY", default="minioadmin"))
 MINIO_SECRET_KEY = get_env("MINIO_SECRET_KEY", default=get_env("MINIO_STORAGE_SECRET_KEY", default="minioadmin"))
-MINIO_DEFAULT_BUCKET = get_env("MINIO_DEFAULT_BUCKET", default=get_env("MINIO_STORAGE_MEDIA_BUCKET_NAME", default="mylandlord-files"))
+MINIO_DEFAULT_BUCKET = get_env("MINIO_DEFAULT_BUCKET", default=get_env("MINIO_STORAGE_MEDIA_BUCKET_NAME", default="app-media"))
 MINIO_STATIC_BUCKET = get_env("MINIO_STATIC_BUCKET", default=get_env("MINIO_STORAGE_STATIC_BUCKET_NAME", default=f"{MINIO_DEFAULT_BUCKET}-static"))
 MINIO_CONSISTENCY_CHECK_ON_START = get_env("MINIO_CONSISTENCY_CHECK_ON_START", default=False, cast=bool)
 MINIO_BUCKET_CHECK_ON_SAVE = get_env("MINIO_BUCKET_CHECK_ON_SAVE", default=True, cast=bool)

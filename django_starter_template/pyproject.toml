@@ -1,25 +1,219 @@
 [project]
 name = "django-starter-template"
 version = "0.1.0"
-description = "Add your description here"
+description = "Django + DRF starter: JWT auth, Celery, S3 storage, OpenAPI, Docker."
 readme = "README.md"
 requires-python = ">=3.12"
+
+# Lower bounds only, with the lock file (uv.lock) pinning exact versions for
+# reproducible builds. Upper-bounding every dependency in an application makes
+# security updates a manual chore for no benefit — libraries need caps,
+# applications need a lock file.
 dependencies = [
-    "celery>=5.6.3",
-    "dj-rest-auth>=7.2.0",
-    "django>=6.0.3",
-    "django-browser-reload>=1.21.0",
-    "django-celery-beat>=2.9.0",
-    "django-celery-results>=2.6.0",
-    "django-cors-headers>=4.9.0",
-    "django-debug-toolbar>=6.2.0",
-    "django-extensions>=4.1",
-    "django-filter>=25.2",
-    "django-jazzmin>=3.0.4",
-    "django-minio-backend>=4.5.0",
-    "django-otp>=1.7.0",
-    "django-redis>=6.0.0",
-    "django-storages>=1.14.6",
-    "drf-auth-kit[all]>=1.1.4",
-    "python-json-logger>=4.1.0",
+    # --- Framework ---
+    "django>=5.1",
+    "djangorestframework>=3.15",
+
+    # --- Database ---
+    # The `binary` extra ships a prebuilt wheel — no libpq headers needed to
+    # install. psycopg's own docs advise building from source in production
+    # (`psycopg[c]`) for a small performance gain; the binary wheel is the
+    # right default for a template.
+    "psycopg[binary]>=3.2",
+    # Parses DATABASE_URL into Django's DATABASES dict.
+    "dj-database-url>=2.2",
+
+    # --- API ---
+    "django-cors-headers>=4.4",
+    "django-filter>=24.3",
+    "drf-spectacular>=0.27",
+    "drf-spectacular-sidecar>=2024.7.1",
+
+    # --- Authentication ---
+    "djangorestframework-simplejwt>=5.3",
+    "dj-rest-auth>=6.0",
+    "django-allauth>=64.0",
+    "django-otp>=1.5",
+    "qrcode>=7.4",           # TOTP enrolment QR codes
+
+    # --- Background work ---
+    "celery>=5.4",
+    "redis>=5.0",
+    "django-redis>=5.4",
+    "django-celery-beat>=2.7",
+    "django-celery-results>=2.5",
+
+    # --- Storage ---
+    "django-storages[s3]>=1.14",
+    "pillow>=10.4",          # required by models.ImageField
+
+    # --- Serving ---
+    # Absent from the original dependency list, which meant the documented
+    # production deployment could not actually start.
+    "gunicorn>=23.0",
+    "whitenoise[brotli]>=6.7",
+
+    # --- Admin & tooling ---
+    "django-jazzmin>=3.0",
+    "django-extensions>=3.2",
+
+    # --- Logging ---
+    "python-json-logger>=2.0",
+
+    # --- Import / export ---
+    # Only needed for the XLSX paths in BaseModelViewSet; CSV works without
+    # it and the import is guarded.
+    "openpyxl>=3.1",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "django-debug-toolbar>=4.4",
+    "django-browser-reload>=1.16",
+    "ipython>=8.26",
+    "werkzeug>=3.0",         # runserver_plus debugger
+]
+
+test = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-cov>=5.0",
+    # Parallel test execution: `pytest -n auto`.
+    "pytest-xdist>=3.6",
+    "factory-boy>=3.3",
+    # Freezes time so tests asserting on timestamps are not flaky.
+    "freezegun>=1.5",
+    # Intercepts outbound HTTP so a test never depends on a third party being
+    # up — and fails loudly if a code path tries to make a real call.
+    "responses>=0.25",
+]
+
+lint = [
+    "ruff>=0.6",
+    "bandit[toml]>=1.7",
+    "pip-audit>=2.7",
+]
+
+monitoring = [
+    "sentry-sdk[django]>=2.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# =============================================================================
+# Ruff — linter and formatter in one.
+#
+# Replaces flake8 + isort + black + pyupgrade + several plugins with a single
+# tool that runs in a fraction of the time, which is what makes it viable as a
+# pre-commit hook people do not disable.
+# =============================================================================
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+    "migrations",   # generated; reformatting them creates noisy diffs
+    ".venv",
+    "venv",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes — unused imports, undefined names
+    "I",     # isort — import ordering
+    "UP",    # pyupgrade — modern syntax
+    "B",     # bugbear — likely bugs
+    "C4",    # comprehensions
+    "DJ",    # Django-specific checks
+    "S",     # bandit — security
+    "T20",   # flake8-print — no stray print()
+    "SIM",   # simplify
+    "RUF",   # ruff's own rules
+]
+ignore = [
+    "E501",   # line length — the formatter handles it; the linter flagging
+              # long strings and URLs it cannot break is noise
+    "S101",   # assert — pytest is built on it
+    "B008",   # function call in default arg — DRF and Django do this widely
+    "DJ001",  # null=True on CharField — occasionally the right call
+    "RUF012", # mutable class attrs need ClassVar — too noisy on Django models
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use hardcoded credentials, asserts, and long fixtures.
+"**/tests/**" = ["S105", "S106", "S107", "ARG"]
+"**/test_*.py" = ["S105", "S106", "S107", "ARG"]
+"**/conftest.py" = ["S105", "S106", "S107"]
+# Settings modules are wildcard-import by design.
+"**/settingsConfig/**" = ["F403", "F405"]
+"**/settings.py" = ["F403", "F405"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "django_starter_template"]
+
+# =============================================================================
+# pytest
+# =============================================================================
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "django_starter_template.settings"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+addopts = [
+    "--tb=short",
+    # Fail on an unregistered @pytest.mark — a typo'd marker silently does
+    # nothing otherwise, so a whole class of tests can be skipped unnoticed.
+    "--strict-markers",
+    "--strict-config",
+    # Reuse the test database between runs. Migrations on a large schema can
+    # take longer than the tests. Add --create-db after a schema change.
+    "--reuse-db",
+]
+
+markers = [
+    "slow: takes more than a second (deselect with -m 'not slow')",
+    "integration: touches a real external service",
+    "unit: no I/O",
+]
+
+# Turn warnings into failures so a deprecation is fixed while it is still a
+# warning, rather than discovered when the next major release removes it.
+filterwarnings = [
+    "error",
+    # Add narrow ignores here rather than weakening the rule above:
+    # "ignore:.*specific message.*:DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/venv/*",
+    "manage.py",
+    "*/settingsConfig/*",
+    "*/wsgi.py",
+    "*/asgi.py",
+]
+
+[tool.coverage.report]
+# Do not count lines that are excluded by design as missed coverage.
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "def __str__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if settings.DEBUG:",
+]
+# No `fail_under` on purpose. A coverage gate mostly teaches people to write
+# tests that execute lines without asserting anything. Track the trend
+# instead, in code review.
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv", "migrations"]

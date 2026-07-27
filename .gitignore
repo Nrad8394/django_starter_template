@@ -57,9 +57,17 @@ cover/
 
 # Django stuff:
 *.log
+# Rotated handlers append the date as the extension (django.log.2025-11-08),
+# so *.log does not match them. 48k lines of these were committed once.
+*.log.*
+logs/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+
+# Generated OpenAPI output — regenerate with `manage.py spectacular`.
+schema.json
+schema.yaml
 
 # Flask stuff:
 instance/

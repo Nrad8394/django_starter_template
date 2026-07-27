@@ -820,65 +820,96 @@ class TwoFactorAuthService:
 
 class ProfileCompletionService:
     """
-    Service for completing user profiles with facial enrollment.
-    
-    Steps:
-    1. Update basic profile info
-    2. Upload and validate profile image
-    3. Enroll face (extract embedding, check quality, detect duplicates)
-    4. Store face enrollment
-    5. Mark profile as complete
+    Marks a user's profile complete after they supply the required details.
+
+    Two things were removed from the version this replaces.
+
+    **Facial enrolment.** It wrote biometric templates
+    (``embedding_vector``, ``face_quality_score``, …) onto the user model.
+    Face embeddings are special-category personal data under GDPR Article 9
+    and are separately regulated in several US states; shipping the columns
+    switched on by default in a starter template is a liability, not a
+    feature. Anything biometric belongs in its own app, behind an explicit
+    consent flow, in a project that has decided it needs one.
+
+    **Unbounded attribute assignment.** The old loop was::
+
+        for key, value in profile_data.items():
+            if hasattr(user, key) and value is not None:
+                setattr(user, key, value)
+
+    ``profile_data`` comes from request data, and ``hasattr`` is true for
+    every field on the model — so a caller could include ``is_superuser``,
+    ``is_staff``, ``is_approved``, ``role_id`` or ``password`` in a profile
+    update and have it applied. That is privilege escalation through a
+    profile form. ``EDITABLE_FIELDS`` below is an allowlist; add to it
+    deliberately.
     """
 
+    #: The only user attributes this service will write. Anything else in the
+    #: payload is ignored. Never add a field that grants privilege.
+    EDITABLE_FIELDS = frozenset(
+        {
+            "first_name",
+            "last_name",
+            "username",
+        }
+    )
+
     @staticmethod
-    def complete_profile(user, profile_data, profile_image=None, facial_image=None):
+    def complete_profile(user, profile_data, profile_image=None):
         """
-        Complete user profile with all required information.
+        Apply allowed profile fields and mark the profile complete.
 
-        Args:
-            user: User instance to complete profile for
-            profile_data: Dictionary with profile fields
-            profile_image: Profile image file
-            facial_image: Facial image for enrollment
-
-        Returns:
-            Tuple[bool, Dict]: (success, response_data)
+        Returns ``(success, response_dict)``.
         """
         from django.utils import timezone
-        
+
         response = {
             "profile_updated": False,
             "image_uploaded": False,
-            "face_enrolled": False,
-            "duplicate_check": {"is_duplicate": False, "matches": []},
-            "face_quality": {"score": 0, "label": "Unknown"},
             "profile_complete": False,
-            "message": ""
+            "ignored_fields": [],
+            "message": "",
         }
-        
+
         try:
-            # Update basic profile info
             if profile_data:
-                for key, value in profile_data.items():
-                    if hasattr(user, key) and value is not None:
+                allowed = ProfileCompletionService.EDITABLE_FIELDS
+                ignored = sorted(set(profile_data) - allowed)
+                if ignored:
+                    # Surfaced rather than silently dropped: a caller sending
+                    # a field that does nothing should find out during
+                    # development, not from a support ticket.
+                    response["ignored_fields"] = ignored
+                    logger.info(
+                        "Ignored non-editable profile fields for user %s: %s",
+                        user.pk,
+                        ", ".join(ignored),
+                    )
+
+                for key in allowed & set(profile_data):
+                    value = profile_data[key]
+                    if value is not None:
                         setattr(user, key, value)
+
                 response["profile_updated"] = True
-            
-            # Handle profile image
+
             if profile_image:
                 user.profile_image = profile_image
                 response["image_uploaded"] = True
-            
-            # Mark profile as complete
+
             user.profile_complete = True
             user.profile_completed_at = timezone.now()
             user.save()
-            
+
             response["profile_complete"] = True
             response["message"] = "Profile completed successfully"
             return True, response
-            
+
         except Exception as e:
-            logger.error(f"Error completing profile for user {user.id}: {str(e)}")
-            response["message"] = f"Error completing profile: {str(e)}"
+            logger.error(
+                "Error completing profile for user %s: %s", user.pk, e, exc_info=True
+            )
+            response["message"] = "Could not complete the profile."
             return False, response

@@ -1,5 +1,21 @@
 """
-Accounts app models for user management and authentication
+Accounts — the project's user model and everything attached to it.
+
+Contents
+--------
+``UserRole``          named role with a permission set
+``UserManager``       email-based user creation, soft-delete aware
+``User``              the ``AUTH_USER_MODEL``
+``UserProfile``       extended profile, approval workflow
+``UserSession``       active session tracking
+``LoginAttempt``      failed-login record for lockout
+``UserRoleHistory``   audit trail of role changes
+
+This app is the single user app. A parallel ``apps.authentication`` app used
+to hold ``User`` and ``UserRole`` while this module still referenced both by
+bare name — so importing it raised ``NameError`` and the app had to be
+commented out of ``INSTALLED_APPS``. The two are merged here; see
+``docs/AUTH_APP_CONSOLIDATION.md`` for what changed and why.
 """
 
 from datetime import timedelta
@@ -8,12 +24,308 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager, Permission
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.conf import settings
-from apps.core.models import TimestampedModel, AuditMixin, SoftDeleteMixin, BaseModel
+from apps.core.models import (
+    TimestampedModel,
+    AuditMixin,
+    SoftDeleteMixin,
+    SoftDeleteQuerySet,
+    BaseModel,
+)
 from .constants import UserStatusConstants
 from django_otp.plugins.otp_totp.models import TOTPDevice
 import uuid
 import pytz
 
+
+class UserRole(BaseModel):
+    """
+    A named role carrying a set of Django permissions.
+
+    Deliberately a thin layer over ``auth.Permission`` rather than a parallel
+    authorization system. The permissions themselves stay Django's, so
+    ``user.has_perm()``, the admin, and DRF's ``DjangoModelPermissions`` all
+    keep working — a role is just a convenient way to grant a bundle of them.
+
+    Building an independent permission model here would mean every check in
+    the project has to remember to use it, and the first one that forgets is a
+    security hole. See ``apps/core/permissions.py``.
+    """
+
+    name = models.SlugField(
+        max_length=100,
+        unique=True,
+        help_text=_("Machine-readable identifier, e.g. 'site-manager'."),
+    )
+    display_name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text=_("Human-readable name shown in the UI."),
+    )
+    description = models.TextField(blank=True, help_text=_("What this role is for."))
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_("Inactive roles cannot be assigned to new users."),
+    )
+    permissions = models.ManyToManyField(
+        Permission,
+        blank=True,
+        related_name="user_roles",
+        help_text=_("Permissions granted to everyone holding this role."),
+    )
+
+    class Meta(BaseModel.Meta):
+        app_label = "accounts"
+        verbose_name = _("User Role")
+        verbose_name_plural = _("User Roles")
+        ordering = ["display_name"]
+        indexes = [
+            models.Index(fields=["is_active", "-updated_at"]),
+            models.Index(fields=["-created_at"]),
+        ]
+
+    def __str__(self):
+        return self.display_name
+
+
+class UserManager(BaseUserManager.from_queryset(SoftDeleteQuerySet)):
+    """
+    Creates users by email, and hides soft-deleted ones.
+
+    Two jobs in one class, because Django only lets a model have one
+    ``_default_manager`` and both behaviours have to live in it:
+
+    1. ``BaseUserManager`` supplies ``normalize_email`` and is what
+       ``createsuperuser`` and the auth backend expect.
+    2. ``from_queryset(SoftDeleteQuerySet)`` plus the ``alive()`` filter below
+       means a soft-deleted user cannot authenticate — the auth backend calls
+       ``UserModel._default_manager.get_by_natural_key()``, which now cannot
+       see them. Declaring a plain ``UserManager`` here (as the previous
+       ``authentication`` app did) silently overrides ``SoftDeleteMixin.objects``
+       and re-admits deleted users at the login form.
+
+    ``User.all_objects`` still returns everyone, so the admin and the restore
+    endpoints keep working.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().alive()
+
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError(_("Users must have an email address."))
+
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_superuser", False)
+
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        # set_password hashes; assigning to .password directly would store the
+        # plaintext and is the single most common way this method gets broken.
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError(_("Superuser must have is_staff=True."))
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError(_("Superuser must have is_superuser=True."))
+
+        return self.create_user(email, password, **extra_fields)
+
+
+class User(AbstractUser, TimestampedModel, SoftDeleteMixin):
+    """
+    The project's user. Authenticates by email.
+
+    Three deliberate departures from the version this replaces, each of which
+    made the model unusable as a template:
+
+    **UUID primary key, not an institutional string.** The old field was
+    ``CharField(primary_key=True, max_length=50, db_column='user_id')``
+    documented as "Institutional user ID used as primary key, e.g. SIG00125" —
+    one organisation's numbering scheme baked into every project generated
+    from this template. Worse, it had no default and ``create_user()`` never
+    set it, so the first user was created with ``id=""`` and the second
+    violated the unique constraint. UUID here matches ``BaseModel`` everywhere
+    else in the project.
+
+    **``role`` is nullable.** It used to be ``null=False`` with
+    ``on_delete=PROTECT``, which makes the project impossible to bootstrap:
+    ``createsuperuser`` cannot supply a role, and no role can exist before the
+    first user creates one. Nullable breaks the cycle. Enforce a role at the
+    application layer — in a serializer or a signal — where you can give a
+    useful error, not at the database layer where it deadlocks setup.
+
+    **``username`` is optional.** ``AbstractUser`` makes it required and
+    unique. With email as ``USERNAME_FIELD`` a second required unique field is
+    just an extra way for registration to fail. Kept nullable rather than
+    removed so third-party packages that reference ``user.username`` do not
+    break.
+    """
+
+    objects = UserManager()
+
+    username = models.CharField(
+        _("username"),
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text=_("Optional. Not used for authentication."),
+    )
+
+    email = models.EmailField(
+        _("email address"),
+        unique=True,
+        help_text=_("Used to sign in."),
+    )
+
+    role = models.ForeignKey(
+        "accounts.UserRole",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="users",
+        help_text=_("Role granting this user a set of permissions."),
+    )
+
+    # --- Account state --------------------------------------------------
+    is_verified = models.BooleanField(
+        default=False,
+        help_text=_("Email address has been confirmed."),
+    )
+    is_approved = models.BooleanField(
+        default=False,
+        help_text=_("An administrator has approved this account."),
+    )
+    terms_accepted = models.BooleanField(
+        default=False,
+        help_text=_("User accepted the terms of service."),
+    )
+
+    # --- Login security -------------------------------------------------
+    # Read by apps.accounts.middleware.LoginSecurityMiddleware.
+    failed_login_attempts = models.PositiveIntegerField(
+        default=0,
+        help_text=_("Consecutive failed sign-ins. Reset on success."),
+    )
+    account_locked_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_("Sign-in is refused until this time."),
+    )
+    last_login_ip = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text=_("IP address of the most recent sign-in."),
+    )
+
+    # --- Password lifecycle ---------------------------------------------
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text=_("Force a password change on next sign-in."),
+    )
+    password_changed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_("When the password was last changed."),
+    )
+
+    # --- Multi-factor authentication ------------------------------------
+    # Added by migration 0002, not 0001, and that split is load-bearing.
+    #
+    # django_otp's TOTPDevice has its own FK to AUTH_USER_MODEL, so declaring
+    # a OneToOne back to it in the initial migration makes accounts.0001 and
+    # otp_totp.0001 depend on each other — Django refuses with
+    # CircularDependencyError and no migration runs at all. Creating the User
+    # table first and adding this field in a follow-up migration is the
+    # documented way out. Keep them separate.
+    otp_device = models.OneToOneField(
+        "otp_totp.TOTPDevice",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="user_account",
+        help_text=_("TOTP device used for two-factor authentication."),
+    )
+    # Single-use codes for when the authenticator app is unavailable.
+    #
+    # Store HASHES, never the codes themselves — a backup code is a password
+    # equivalent, and a database leak that hands over working MFA bypasses is
+    # worse than having no MFA at all. `apps.core.services` is responsible for
+    # hashing on write and comparing on use.
+    backup_codes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=_("Hashed single-use MFA recovery codes."),
+    )
+
+    # --- Profile ---------------------------------------------------------
+    profile_image = models.ImageField(
+        upload_to="profile_images/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text=_("Avatar."),
+    )
+    profile_complete = models.BooleanField(
+        default=False,
+        help_text=_("User finished the profile-completion flow."),
+    )
+    profile_completed_at = models.DateTimeField(null=True, blank=True)
+
+    USERNAME_FIELD = "email"
+    EMAIL_FIELD = "email"
+    # Empty on purpose: these are the fields `createsuperuser` prompts for in
+    # addition to USERNAME_FIELD and password. AbstractUser leaves first_name
+    # and last_name blankable, so demanding them here contradicts the model.
+    REQUIRED_FIELDS = []
+
+    class Meta:
+        app_label = "accounts"
+        verbose_name = _("User")
+        verbose_name_plural = _("Users")
+        ordering = ["-created_at"]
+        # Must not filter: Django uses _base_manager for related-object
+        # traversal and cascade collection. See SoftDeleteMixin in
+        # apps/core/models.py.
+        base_manager_name = "all_objects"
+        indexes = [
+            models.Index(fields=["is_active", "-created_at"]),
+            models.Index(fields=["is_deleted", "is_active"]),
+        ]
+
+    def __str__(self):
+        return self.email
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_full_name(self):
+        # AbstractUser defines this; overridden so it falls back to the email
+        # rather than returning an empty string for a user with no name set.
+        return self.full_name or self.email
+
+    def has_role(self, name) -> bool:
+        """True if this user holds the named role. Superusers hold every role."""
+        if self.is_superuser:
+            return True
+        return bool(self.role and self.role.is_active and self.role.name == name)
+
+    def is_otp_enabled(self) -> bool:
+        """True when a confirmed TOTP device is attached."""
+        return bool(self.otp_device and self.otp_device.confirmed)
+
+    @property
+    def is_locked_out(self) -> bool:
+        """True while a lockout from failed sign-ins is still in effect."""
+        if not self.account_locked_until:
+            return False
+        return self.account_locked_until > timezone.now()
 
 
 class UserProfile(TimestampedModel, AuditMixin, SoftDeleteMixin):

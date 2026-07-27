@@ -1,0 +1,201 @@
+# =============================================================================
+# CI — runs on every push and pull request.
+#
+# Jobs are independent and run in parallel; a lint failure does not hide a
+# test failure. `concurrency` cancels superseded runs on the same branch so a
+# rapid push sequence does not queue five obsolete builds.
+#
+# Paths assume the Django project lives in ./django_starter_template.
+# Adjust WORKDIR below if you flatten the layout.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WORKDIR: django_starter_template
+  PYTHON_VERSION: "3.12"
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # TruffleHog diffs commits, so it needs history, not just the tip.
+          fetch-depth: 0
+      - name: TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          head: ${{ github.sha }}
+          # --only-verified means it calls the provider to check whether the
+          # credential actually works. Cuts false positives to near zero,
+          # which is what keeps people from ignoring this job.
+          extra_args: --only-verified
+
+  lint:
+    name: Lint — ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install ruff
+      - name: ruff check
+        run: ruff check ${{ env.WORKDIR }}
+      - name: ruff format --check
+        run: ruff format --check ${{ env.WORKDIR }}
+
+  test:
+    name: Test — pytest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports: ["5432:5432"]
+        # Without this, the test step can start before Postgres accepts
+        # connections and fail with a connection-refused that looks like a
+        # code problem.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: ${{ env.WORKDIR }}
+        run: uv sync --all-extras
+
+      - name: Check for missing migrations
+        working-directory: ${{ env.WORKDIR }}
+        env:
+          DJANGO_ENV: test
+          SECRET_KEY: ci-only-not-a-real-secret
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        # A model change without its migration passes every test and then
+        # breaks the next deploy. --check --dry-run fails the build instead.
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Django system checks
+        working-directory: ${{ env.WORKDIR }}
+        env:
+          DJANGO_ENV: production
+          SECRET_KEY: ci-only-not-a-real-secret-but-long-enough-to-pass-checks
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DJANGO_ALLOWED_HOSTS: example.com
+          SECURE_SSL_REDIRECT: "True"
+          SESSION_COOKIE_SECURE: "True"
+          CSRF_COOKIE_SECURE: "True"
+          SECURE_HSTS_SECONDS: "31536000"
+        # Runs against the PRODUCTION profile deliberately: `check --deploy`
+        # only reports meaningful findings there, and this is the cheapest
+        # place to catch a security setting that regressed.
+        run: uv run python manage.py check --deploy --fail-level WARNING
+
+      - name: pytest
+        working-directory: ${{ env.WORKDIR }}
+        env:
+          DJANGO_ENV: test
+          SECRET_KEY: ci-only-not-a-real-secret
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_TASK_ALWAYS_EAGER: "True"
+        run: uv run pytest --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ env.WORKDIR }}/coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    name: Security — pip-audit + bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pip-audit bandit[toml]
+
+      - name: pip-audit — known CVEs in dependencies
+        working-directory: ${{ env.WORKDIR }}
+        # Advisory only. A new CVE in a transitive dependency should not block
+        # an unrelated bugfix from merging; it should be visible and triaged.
+        continue-on-error: true
+        run: pip-audit --desc
+
+      - name: bandit — common insecure patterns
+        working-directory: ${{ env.WORKDIR }}
+        # -ll: report medium and high only. Low findings are mostly noise
+        # (asserts in tests, subprocess with a literal command) and a noisy
+        # scanner is an ignored scanner.
+        run: bandit -r . -ll --exclude ./tests,./venv,./.venv
+
+  docker:
+    name: Docker — build + hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ env.WORKDIR }}/Dockerfile
+          failure-threshold: error
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.WORKDIR }}
+          push: false
+          # Persist the layer cache in GitHub Actions cache so an unchanged
+          # dependency set does not recompile every run.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VCS_REF=${{ github.sha }}

@@ -27,7 +27,6 @@ class UserAdmin(BaseUserAdmin):
     list_display = (
         "email",
         "full_name",
-        "user_id",
         "role_badge",
         "status_badges",
         "security_status",
@@ -47,8 +46,7 @@ class UserAdmin(BaseUserAdmin):
         "created_at",
         "last_login",
     )
-    # use model field name `id` (DB column is `user_id`) for ORM lookups
-    search_fields = ("email", "first_name", "last_name", "id")
+    search_fields = ("email", "first_name", "last_name")
     ordering = ("-created_at",)
     actions = [
         "approve_users",
@@ -67,9 +65,9 @@ class UserAdmin(BaseUserAdmin):
         (
             _("Role & Status"),
             {
-                # Admin forms require actual model field names. The model's PK field
-                # is named `id` (db_column='user_id'), so use `id` here.
-                "fields": ("role", "id", "is_approved", "is_verified"),
+                # `id` is an auto-generated UUID and is not editable, so it
+                # belongs in readonly_fields rather than an editable fieldset.
+                "fields": ("role", "is_approved", "is_verified"),
             },
         ),
         (

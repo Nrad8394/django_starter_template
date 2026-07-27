@@ -1,0 +1,65 @@
+# Everything not needed to build or run the image.
+#
+# This file is a security control as much as a build-speed one: whatever
+# reaches the build context can end up in a layer, and layers are readable by
+# anyone who can pull the image. `.env` at the top is the important line.
+
+# --- Secrets -----------------------------------------------------------------
+.env
+.env.*
+!env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# --- Version control ---------------------------------------------------------
+.git
+.gitignore
+.github
+.gitattributes
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.Python
+build/
+dist/
+
+# --- Test & lint artefacts ---------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Local data --------------------------------------------------------------
+# db.sqlite3 in the image would ship someone's local data — and be shadowed
+# by the real database anyway.
+db.sqlite3
+*.sqlite3
+logs/
+media/
+staticfiles/
+
+# --- Editor / OS -------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Docs & compose ----------------------------------------------------------
+# Not needed at runtime; excluding them keeps the context small so a docs edit
+# does not invalidate the build cache.
+*.md
+!README.md
+docs/
+docker-compose*.yml
+Dockerfile*
+.dockerignore

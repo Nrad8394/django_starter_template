@@ -45,6 +45,22 @@ from django.utils import timezone
 
 class BaseModelViewSet(viewsets.ModelViewSet):
     """
+    DEPRECATED — import from ``apps.core.viewsets`` instead.
+
+        from apps.core.viewsets import BaseModelViewSet
+
+    This older copy is kept only so existing imports keep working while you
+    migrate. It is missing everything the replacement fixes: bulk update here
+    calls ``QuerySet.update()`` with caller-supplied field names (no
+    validation, no signals, no ``updated_by``, no restriction on which columns
+    may be set), export defaults to every model field rather than an
+    allowlist, and export is unbounded. See the module docstring of
+    ``apps/core/viewsets.py`` for the full account.
+
+    Delete this class once nothing imports it.
+
+    ---
+
     Base ModelViewSet with enhanced features including bulk operations, import/export, and statistics.
 
     This base viewset provides:
@@ -1148,132 +1164,6 @@ def mark_notification_read(request, notification_id):
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(
-    summary="Get System Settings",
-    description="Get current system-wide configuration settings. Admin only.",
-    responses={
-        200: OpenApiResponse(
-            description="System settings", response={"type": "object"}
-        ),
-        **common_responses,
-    },
-    tags=["Core"],
-)
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_system_settings(request):
-    """
-    Get current system settings.
-    Only administrators can view settings.
-    """
-    from apps.core.models import SystemSettings
-    from apps.core.serializers import SystemSettingsSerializer
-
-    user = request.user
-
-    # Check if user is admin
-    if not (
-        user.is_superuser
-        or (hasattr(user, "role") and user.role and user.role.name == "admin")
-    ):
-        return Response(
-            {"error": "Only administrators can view system settings"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    # Load settings (singleton)
-    settings_obj = SystemSettings.load()
-    serializer = SystemSettingsSerializer(settings_obj)
-
-    return Response(serializer.data)
-
-
-@extend_schema(
-    summary="Update System Settings",
-    description="Update system-wide configuration settings. Admin only.",
-    request=SystemSettingsSerializer,
-    responses={
-        200: OpenApiResponse(
-            description="Settings updated successfully", response={"type": "object"}
-        ),
-        **common_responses,
-    },
-    tags=["Core"],
-)
-@api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
-def update_system_settings(request):
-    """
-    Update system settings.
-    Only administrators can modify settings.
-    """
-    from apps.core.models import SystemSettings
-    from apps.core.serializers import SystemSettingsSerializer
-
-    user = request.user
-
-    # Check if user is admin
-    if not (
-        user.is_superuser
-        or (hasattr(user, "role") and user.role and user.role.name == "admin")
-    ):
-        return Response(
-            {"error": "Only administrators can modify system settings"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    # Load settings (singleton)
-    settings_obj = SystemSettings.load()
-
-    # Validate input
-    serializer = SystemSettingsSerializer(data=request.data, partial=True)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # Update fields
-    for field, value in serializer.validated_data.items():
-        if field not in ["updated_at", "updated_by_email"]:  # Skip read-only fields
-            setattr(settings_obj, field, value)
-
-    # Set updated_by
-    settings_obj.updated_by = user
-    settings_obj.save()
-
-    # Return updated settings
-    response_serializer = SystemSettingsSerializer(settings_obj)
-    return Response(response_serializer.data)
-
-
-@extend_schema(
-    summary="System Settings (Combined GET/PATCH)",
-    description="Get or update system settings. Admin only.",
-    request=SystemSettingsSerializer,
-    responses={
-        200: OpenApiResponse(
-            description="System settings", response={"type": "object"}
-        ),
-        **common_responses,
-    },
-    tags=["Core"],
-)
-@api_view(["GET", "PATCH"])
-@permission_classes([IsAuthenticated])
-def system_settings(request):
-    """
-    Combined endpoint for system settings.
-    GET: Retrieve settings
-    PATCH: Update settings
-    Admin only.
-    """
-    # The incoming `request` here may be a DRF `Request` (when routed through
-    # DRF machinery). The decorated view functions `get_system_settings` and
-    # `update_system_settings` expect a raw Django `HttpRequest` (they are
-    # wrapped by `@api_view`) — passing a DRF `Request` directly into them
-    # causes DRF to attempt to wrap it again and assert. To avoid that, pass
-    # the underlying HttpRequest when available.
-    base_request = getattr(request, "_request", request)
-
-    if request.method == "GET":
-        return get_system_settings(base_request)
-    elif request.method == "PATCH":
-        return update_system_settings(base_request)
+# NOTE: `get_system_settings` / `update_system_settings` / `system_settings`
+# were removed along with the `SystemSettings` model. See
+# apps/core/migrations/README.md.

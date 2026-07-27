@@ -170,7 +170,7 @@ def send_user_creation_notification(sender, instance, created, **kwargs):
                     "reset_link": reset_link,
                     "expiry_hours": 24,
                     "support_email": getattr(settings, 'SUPPORT_EMAIL', 'support@example.com'),
-                    "platform_name": getattr(settings, 'PLATFORM_NAME', 'Smart School Management'),
+                    "platform_name": getattr(settings, 'PLATFORM_NAME', 'Your Platform'),
                 }
                 
                 # Create notification instance (status will be pending)

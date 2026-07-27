@@ -222,7 +222,7 @@ class NotificationService:
 
             # Compose proper From header (display name + address)
             from_address = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com")
-            display_name = getattr(settings, "PLATFORM_NAME", "Smart School Management")
+            display_name = getattr(settings, "PLATFORM_NAME", "Your Platform")
             display_from = f"{display_name} <{from_address}>"
 
             # Use support email as Reply-To so replies go to support, fallback to from_address

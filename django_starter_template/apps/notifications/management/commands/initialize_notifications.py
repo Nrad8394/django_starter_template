@@ -197,7 +197,7 @@ class Command(BaseCommand):
                 "name": "accounts.welcome",
                 "template_type": NotificationTemplate.TYPE_EMAIL,
                 "subject": "Welcome to {{ platform_name }}",
-                "body": "Dear {{ user_name }},\n\nWelcome to {{ platform_name }}! Your account has been created.\n\nBest regards,\nSmart School Management Team",
+                "body": "Dear {{ user_name }},\n\nWelcome to {{ platform_name }}! Your account has been created.\n\nBest regards,\n{{ platform_name }} Team",
                 "variables": {"user_name": "string", "platform_name": "string"},
                 "priority": NotificationTemplate.PRIORITY_MEDIUM,
                 "description": "Fallback welcome email for accounts module",
@@ -206,7 +206,7 @@ class Command(BaseCommand):
                 "name": "accounts.account_activated",
                 "template_type": NotificationTemplate.TYPE_EMAIL,
                 "subject": "Your Account Has Been Activated",
-                "body": "Dear {{ user_name }},\n\nYour account has been activated and you can now log in at {{ login_url }}.\n\nBest regards,\nSmart School Management Team",
+                "body": "Dear {{ user_name }},\n\nYour account has been activated and you can now log in at {{ login_url }}.\n\nBest regards,\n{{ platform_name }} Team",
                 "variables": {"user_name": "string", "login_url": "string"},
                 "priority": NotificationTemplate.PRIORITY_MEDIUM,
                 "description": "Fallback account activation email",
@@ -223,10 +223,10 @@ class Command(BaseCommand):
             {
                 "name": "User Welcome Email",
                 "template_type": NotificationTemplate.TYPE_EMAIL,
-                "subject": "Welcome to Smart School Management System",
+                "subject": "Welcome to {{ platform_name }}",
                 "body": """Dear {{ user_name }},
 
-Welcome to the Smart School Management System!
+Welcome to the {{ platform_name }}!
 
 Your account has been successfully created with the following details:
 • User ID: {{ user_id }}
@@ -238,7 +238,7 @@ You will receive a separate email with instructions to set your password.
 If you have any questions, please contact your system administrator.
 
 Best regards,
-Smart School Management Team""",
+{{ platform_name }} Team""",
                 "variables": {
                     "user_name": "string",
                     "user_id": "string",
@@ -252,7 +252,7 @@ Smart School Management Team""",
                 "name": "User Welcome In-App",
                 "template_type": NotificationTemplate.TYPE_IN_APP,
                 "subject": "Welcome!",
-                "body": "Welcome to Smart School Management System, {{ user_name }}! Your account has been created successfully.",
+                "body": "Welcome to {{ platform_name }}, {{ user_name }}! Your account has been created successfully.",
                 "variables": {"user_name": "string"},
                 "priority": NotificationTemplate.PRIORITY_MEDIUM,
                 "description": "In-app welcome notification",
@@ -260,7 +260,7 @@ Smart School Management Team""",
             {
                 "name": "Password Reset Required",
                 "template_type": NotificationTemplate.TYPE_EMAIL,
-                "subject": "Set Your Password - Smart School Management",
+                "subject": "Set Your Password - {{ platform_name }}",
                 "body": """Dear {{ user_name }},
 
 Your account has been created by an administrator. You need to set your password to access the system.
@@ -273,7 +273,7 @@ This link will expire in {{ expiry_hours }} hours.
 If you did not request this account, please contact your system administrator immediately.
 
 Best regards,
-Smart School Management Team""",
+{{ platform_name }} Team""",
                 "variables": {
                     "user_name": "string",
                     "reset_link": "string",
@@ -308,7 +308,7 @@ You can now access all features available for your role: {{ role }}.
 Login at: {{ login_url }}
 
 Best regards,
-Smart School Management Team""",
+{{ platform_name }} Team""",
                 "variables": {
                     "user_name": "string",
                     "approved_by": "string",

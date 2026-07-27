@@ -1,0 +1,160 @@
+# =============================================================================
+# Local development stack.
+#
+#   cp env.example .env
+#   docker compose up --build
+#   docker compose exec api python manage.py migrate
+#   docker compose exec api python manage.py createsuperuser
+#
+# This is a DEVELOPMENT compose file. It bind-mounts source, runs the Django
+# dev server, and exposes the database on a host port. Do not deploy it —
+# see docs/DEPLOYMENT.md for what changes in production.
+# =============================================================================
+
+name: django-starter-template
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Exposed so you can attach psql or a GUI client from the host. Remove
+      # this line if you would rather not have Postgres listening on the host.
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      # `api` waits on this. Without it, the app starts before Postgres is
+      # accepting connections and dies on the first query — the single most
+      # common "it works on the second `up`" symptom.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app_user} -d ${POSTGRES_DB:-app_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Persistence off: everything here is a cache or a task queue, both of
+    # which are safe to lose locally. Add `--appendonly yes` if you are
+    # testing task durability.
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-app_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/2
+      CELERY_RESULT_BACKEND: redis://redis:6379/3
+    volumes:
+      # Bind-mount for hot reload. This SHADOWS the image's /app, so the
+      # container runs your working tree, not what was built. Two consequences:
+      # a dependency added to pyproject.toml still needs a rebuild, and this
+      # mount must not exist in production.
+      - .:/app
+      - media_data:/app/media
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-app_db}
+      CELERY_BROKER_URL: redis://redis:6379/2
+      CELERY_RESULT_BACKEND: redis://redis:6379/3
+    volumes:
+      - .:/app
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # --concurrency is low on purpose: locally you want to notice a task that
+    # blocks, not have it hidden by parallelism.
+    command: celery -A django_starter_template worker --loglevel=info --concurrency=2
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-app_db}
+      CELERY_BROKER_URL: redis://redis:6379/2
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # NEVER run more than one beat instance. Two schedulers means every
+    # periodic task fires twice — which for anything that sends email or
+    # charges a card is a real incident.
+    command: >
+      celery -A django_starter_template beat --loglevel=info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  # --- Optional services -----------------------------------------------------
+  # Uncomment as needed.
+  #
+  # mailhog:
+  #   # Catches all outgoing SMTP so you can read the emails your app sends
+  #   # without delivering them. Set EMAIL_HOST=mailhog EMAIL_PORT=1025 and
+  #   # EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend.
+  #   image: mailhog/mailhog:latest
+  #   ports:
+  #     - "1025:1025"   # SMTP
+  #     - "8025:8025"   # web UI
+  #
+  # minio:
+  #   # S3-compatible object storage for testing the s3 storage backend
+  #   # without an AWS account.
+  #   image: minio/minio:latest
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - minio_data:/data
+
+volumes:
+  postgres_data:
+  media_data:
+  # minio_data:

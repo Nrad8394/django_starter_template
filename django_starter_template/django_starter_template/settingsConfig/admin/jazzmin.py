@@ -35,7 +35,7 @@ JAZZMIN_SETTINGS = {
     # Copyright on the footer
     "copyright": f"{SITE_NAME} Team",
     # List of model admins to search from the search bar, search bar omitted if excluded
-    "search_model": ["authentication.User"],
+    "search_model": ["accounts.User"],
     # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
     "user_avatar": None,
     ############
@@ -49,9 +49,9 @@ JAZZMIN_SETTINGS = {
         {"name": "API Docs (Swagger)", "url": "/api/v1/docs/", "new_window": True},
         {"name": "API Docs (ReDoc)", "url": "/api/v1/redoc/", "new_window": True},
         # model admin to link to (Permissions checked against model)
-        {"model": "authentication.User"},
+        {"model": "accounts.User"},
         # App with dropdown menu to all its models pages (Permissions checked against models)
-        {"app": "authentication"},
+        {"app": "accounts"},
     ],
     #############
     # User Menu #
@@ -60,7 +60,7 @@ JAZZMIN_SETTINGS = {
     "usermenu_links": [
         {"name": "API Docs (Swagger)", "url": "/api/v1/docs/", "new_window": True},
         {"name": "API Docs (ReDoc)", "url": "/api/v1/redoc/", "new_window": True},
-        {"model": "authentication.User"},
+        {"model": "accounts.User"},
     ],
     #############
     # Side Menu #
@@ -90,7 +90,7 @@ JAZZMIN_SETTINGS = {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
-        "authentication.User": "fas fa-user-circle",
+        "accounts.User": "fas fa-user-circle",
         "core": "fas fa-cogs",
         "sites.Site": "fas fa-globe",
         "account.EmailAddress": "fas fa-envelope",
@@ -131,7 +131,7 @@ JAZZMIN_SETTINGS = {
     "changeform_format": "horizontal_tabs",
     # override change forms on a per modeladmin basis
     "changeform_format_overrides": {
-        "authentication.User": "horizontal_tabs",
+        "accounts.User": "horizontal_tabs",
         "auth.Group": "vertical_tabs",
     },
     # Add a language dropdown into the admin

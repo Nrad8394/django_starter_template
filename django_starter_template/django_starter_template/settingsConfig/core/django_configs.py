@@ -70,6 +70,15 @@ SITE_ID = 1
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
-# Custom user model - Constant
-AUTH_USER_MODEL = "authentication.User"
+# Custom user model.
+#
+# Set before the first migration and treat as immutable afterwards. Changing
+# it once tables exist means squashing every migration and rebuilding the
+# database — Django offers no supported path. If you rename the app or the
+# model, do it now.
+#
+# Everything else in the project refers to this via
+# `settings.AUTH_USER_MODEL` or `get_user_model()`, never by label, so this
+# line is the only place the name appears.
+AUTH_USER_MODEL = "accounts.User"
 

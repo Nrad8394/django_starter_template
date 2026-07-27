@@ -111,7 +111,7 @@ def send_password_reset_email(self, user_id, reset_token):
                 </div>
                 <div class="content">
                     <h3>Hello {user.first_name or 'User'},</h3>
-                    <p>You have requested to reset your password for your Smart School Management account.</p>
+                    <p>You have requested to reset your password for your {{ platform_name }} account.</p>
                     <p>Click the button below to reset your password:</p>
                     <div style="text-align: center;">
                         <a href="{reset_url}" class="button">Reset Password</a>
@@ -131,7 +131,7 @@ def send_password_reset_email(self, user_id, reset_token):
         text_message = f"""
         Hello {user.first_name or 'User'},
 
-        You have requested to reset your password for your Smart School Management account.
+        You have requested to reset your password for your {{ platform_name }} account.
 
         Click the link below to reset your password:
         {reset_url}
@@ -143,7 +143,7 @@ def send_password_reset_email(self, user_id, reset_token):
         For security reasons, please do not share this email with anyone.
 
         Best regards,
-        The Smart School Management Team
+        The {{ platform_name }} Team
         """
 
         email = EmailMultiAlternatives(
