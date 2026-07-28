@@ -1,11 +1,5 @@
 # Patterns & Decisions
 
-> **This file is mirrored in both templates.** It documents decisions that
-> span the pair (`django_starter_template` and `Fronted_Web_Template`), because
-> several of them — the error contract, the pagination shape, the bulk
-> endpoints — are contracts *between* them and only make sense together.
-> Edit both copies, or they drift.
-
 A record of what these templates do, why, and — where a pattern was harvested
 from a real project — what was changed on the way in and what was left behind.
 
@@ -1011,3 +1005,72 @@ original's equivalent modules did not have. 47 tests, clean typecheck, clean
 build with zero warnings.
 
 Full analysis: `Fronted_Web_Template/next_template/lib/entity/ANALYSIS.md`.
+
+---
+
+## 21. Second harvest: bootstrapping a real project found what the audit missed
+
+The first cleaning pass (§1–§20) audited the templates in place. This round's
+evidence is different in kind: the backend template was used to bootstrap a
+real product, and **a fresh checkout did not start**. Everything below was hit
+in sequence by `manage.py check` on a clean machine, fixed in the product, and
+back-ported here. A template's true test is a cold start, not a code review.
+
+**Undeclared imports (ModuleNotFoundError at startup).** `pytz` (accounts),
+`user_agents` and `geoip2` (core services), `cryptography` (security models) —
+all imported at module scope, none declared. `pytz` is also deprecated;
+replaced with stdlib `zoneinfo` rather than declared.
+
+**A URLconf pointing at a phantom package.** `urls.py` included
+`auth_kit.urls`. No such package exists — the only thing by that name is a
+settings fragment configuring allauth. The template's actual auth
+implementation (`apps/core/auth_urls.py`) was never wired. The whole
+application failed to import.
+
+**Storage hardcoded to an undeclared backend.** `STORAGES` named
+`django_minio_backend` for default *and* staticfiles — making the documented
+`STORAGE_BACKEND_TYPE='local'` dead code and requiring MinIO to run
+`manage.py check`. Now selected by the documented variable; whitenoise serves
+static; manifest hashing is production-only.
+
+**An app both required and disabled.** `apps.security` shipped commented out
+of `INSTALLED_APPS` while `apps/core/services.py` imported its `AuditLog` at
+module scope. The app registry raised on any fresh checkout.
+
+**`cast=bool`, 26 live instances.** The exact trap `env.py`'s own docstring
+warns about — `bool("False")` is `True`, so `DEBUG=False` in `.env` turned
+debug ON. All converted to `get_bool()`.
+
+**The test suite could not run without Postgres.** `pytest` pointed at the
+production-shaped settings while `settingsConfig/test.py` (SQLite in-memory)
+sat unused; three markers used by the app suites were unregistered, which
+under `--strict-markers` is a collection error. Now: test settings by default,
+markers registered, 52 tests in ~4s with no services.
+
+**`apps.notifications` disabled by default, documented at the switch.** Its
+signals call `.delay()` inside `post_save` and reach the broker even under
+`CELERY_TASK_ALWAYS_EAGER` — with no Redis, every save blocks on a TCP
+timeout (the product's first suite run took 16m30s). It also imports a
+non-existent `apps.workflow` and assumes a `notification_preferences` relation
+nothing creates. Re-enable only after moving sends out of signals.
+
+**Assorted, found by the product's first real run:** `accounts/signals.py` was
+two complete modules concatenated (both sending a welcome message);
+`UserDetailSerializer` listed a `user_id` field left over from a replaced
+primary key (every request through it 500'd); six undefined names (`logger`,
+`User`, `Count`) sat in error paths and scheduled jobs; `apps.accounts` still
+used the deprecated `apps.core.views` base — meaning §7/§8's hardened
+`viewsets.py` had **zero importers** and the password hash was exportable.
+`UserViewSet` now declares an `export_fields` allowlist, pinned by a test.
+Django is pinned `>=5.2,<6.0` — unbounded `>=5.1` silently resolved to 6.0.
+
+**Frontend (this round):** the template's `globals.css` was generic-blue
+boilerplate with element-level `button`/`input`/`table`/`nav` rules that fight
+Tailwind utilities and shadcn components. Replaced with a semantic token layer
+(shadcn HSL-triplet convention, neutral palette, light+dark) and a
+`tailwind.config.ts` that maps all of it; consuming projects re-theme by
+swapping token values only.
+
+The rule this round adds: **before publishing a template change, cold-start
+it** — fresh clone, `uv sync`, `manage.py check`, `pytest`, all with no
+services running. Every defect above would have been caught by that loop.
