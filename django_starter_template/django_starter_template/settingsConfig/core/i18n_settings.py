@@ -6,7 +6,7 @@ and locale settings.
 
 Reference: https://docs.djangoproject.com/en/stable/topics/i18n/
 """
-from ..env import get_env
+from ..env import get_env, get_bool
 # ============================================================================
 # LANGUAGE & LOCALIZATION
 # ============================================================================
@@ -24,10 +24,10 @@ LANGUAGES = [
 ]
 
 # Locale name to app-list form
-USE_I18N = get_env('USE_I18N', default=True, cast=bool)
+USE_I18N = get_bool('USE_I18N', default=True)
 
 # Internationalized format strings (i.e., use local formatting of data)
-USE_L10N = get_env('USE_L10N', default=True, cast=bool)
+USE_L10N = get_bool('USE_L10N', default=True)
 
 # ============================================================================
 # TIMEZONE
@@ -37,7 +37,7 @@ USE_L10N = get_env('USE_L10N', default=True, cast=bool)
 TIME_ZONE = get_env('TIME_ZONE', default='Africa/Nairobi')
 
 # Use timezone-aware datetimes in the ORM
-USE_TZ = get_env('USE_TZ', default=True, cast=bool)
+USE_TZ = get_bool('USE_TZ', default=True)
 
 # ============================================================================
 # LOCALE PATHS

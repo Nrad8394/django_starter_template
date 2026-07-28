@@ -241,9 +241,9 @@ class UserAdmin(BaseUserAdmin):
         if obj.created_at:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.created_at.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"
@@ -399,9 +399,9 @@ class UserRoleAdmin(admin.ModelAdmin):
         if obj.created_at:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.created_at.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"
@@ -513,9 +513,9 @@ class UserProfileAdmin(admin.ModelAdmin):
         if obj.created_at:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.created_at.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"
@@ -654,9 +654,9 @@ class LoginAttemptAdmin(admin.ModelAdmin):
         if obj.created_at:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.created_at.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"
@@ -746,9 +746,9 @@ class UserSessionAdmin(admin.ModelAdmin):
         if obj.last_activity:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.last_activity.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"
@@ -761,9 +761,9 @@ class UserSessionAdmin(admin.ModelAdmin):
         if obj.expires_at:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.expires_at.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"
@@ -942,9 +942,9 @@ class UserRoleHistoryAdmin(admin.ModelAdmin):
         if obj.created_at:
             # Convert to configured timezone
             from django.conf import settings
-            import pytz
+            from zoneinfo import ZoneInfo
 
-            tz = pytz.timezone(settings.TIME_ZONE)
+            tz = ZoneInfo(settings.TIME_ZONE)
             local_time = obj.created_at.astimezone(tz)
             return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
         return "-"

@@ -33,12 +33,18 @@ urlpatterns = [
     # path('accounts/confirm-email/<str:key>/', auth_views.EmailConfirmationRedirectView.as_view(), name='account_confirm_email'),
 
     # API v1 endpoints
+    #
+    # `auth_kit.urls` used to sit here. There is no `auth_kit` package — the
+    # only thing by that name is settingsConfig/auth/auth_kit.py, which merely
+    # configures allauth providers — so the URLconf raised ModuleNotFoundError
+    # and the whole application failed to start. The template's actual auth
+    # implementation is apps/core/auth_urls.py (backed by auth_views.py).
     path('api/v1/', include([
-        path('auth/', include('auth_kit.urls')),
-    #     path('core/', include('apps.core.urls')),
-    #     path('accounts/', include('apps.accounts.urls')),
-    #     path('security/', include('apps.security.urls')),
-    #     path('notifications/', include('apps.notifications.urls')),
+        path('auth/', include('apps.core.auth_urls')),
+        path('core/', include('apps.core.urls')),
+        path('accounts/', include('apps.accounts.urls')),
+        path('security/', include('apps.security.urls')),
+        # notifications is disabled — see settingsConfig/core/apps.py
     ])),
 
         # API Documentation

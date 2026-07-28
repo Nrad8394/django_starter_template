@@ -11,7 +11,10 @@ requires-python = ">=3.12"
 # applications need a lock file.
 dependencies = [
     # --- Framework ---
-    "django>=5.1",
+    # Pinned to the LTS line. Unbounded `django>=5.1` resolved to Django 6.0,
+    # which several dependencies (jazzmin among them) do not yet claim support
+    # for. Bump the ceiling deliberately, with a test run — not by accident.
+    "django>=5.2,<6.0",
     "djangorestframework>=3.15",
 
     # --- Database ---
@@ -59,6 +62,14 @@ dependencies = [
 
     # --- Logging ---
     "python-json-logger>=2.0",
+
+    # Imported by apps/core/services.py at module scope but previously never
+    # declared, so a fresh checkout failed at `manage.py check`.
+    "user-agents>=2.2",
+    "geoip2>=4.8",
+    # apps/security/models.py imports cryptography.fernet at module scope —
+    # also previously undeclared.
+    "cryptography>=43.0",
 
     # --- Import / export ---
     # Only needed for the XLSX paths in BaseModelViewSet; CSV works without
@@ -158,7 +169,10 @@ known-first-party = ["apps", "django_starter_template"]
 # pytest
 # =============================================================================
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "django_starter_template.settings"
+# settingsConfig/test.py (SQLite in-memory) exists precisely for tests, but
+# this used to point at the Postgres-backed default — so the suite could not
+# run without a live database container. Tests should need no services.
+DJANGO_SETTINGS_MODULE = "django_starter_template.settingsConfig.test"
 python_files = ["test_*.py", "*_test.py", "tests.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -172,9 +186,17 @@ addopts = [
     # Reuse the test database between runs. Migrations on a large schema can
     # take longer than the tests. Add --create-db after a schema change.
     "--reuse-db",
+    # apps.notifications is disabled by default (see settingsConfig/core/apps.py
+    # for the three defects that keep it off); its tests cannot run without it.
+    "--ignore=apps/notifications",
 ]
 
 markers = [
+    # Layer markers used by the shipped app test suites; with --strict-markers
+    # an unregistered marker is a collection error, not a warning.
+    "model: exercises model behaviour",
+    "serializer: exercises serializer validation/representation",
+    "view: exercises a view or viewset through the request cycle",
     "slow: takes more than a second (deselect with -m 'not slow')",
     "integration: touches a real external service",
     "unit: no I/O",

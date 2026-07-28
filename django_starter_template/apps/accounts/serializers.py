@@ -329,7 +329,11 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "last_name",
             "full_name",
             "phone_number",
-            "user_id",
+            # "user_id" was here. It is a leftover from the previous User model,
+            # whose PK was `id = CharField(db_column="user_id")`. That PK was
+            # replaced with a UUID; the serializer was not updated, so DRF
+            # raised ImproperlyConfigured while building the field map and every
+            # request through this serializer returned 500.
             "date_of_birth",
             "profile_picture",
             "profile_image",

@@ -33,6 +33,14 @@ from .serializers import (
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 from .services import TwoFactorAuthService
+
+# Module-level logger. `logging` was only imported *inside* one function,
+# so the `logger.error(...)` calls in other exception handlers raised
+# NameError — turning a handled error into an unhandled 500 on the very
+# path meant to report it cleanly.
+import logging
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     CustomRegisterSerializer,
     CustomLoginSerializer,

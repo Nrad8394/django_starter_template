@@ -34,7 +34,7 @@ from apps.core.models import (
 from .constants import UserStatusConstants
 from django_otp.plugins.otp_totp.models import TOTPDevice
 import uuid
-import pytz
+from datetime import timezone as dt_timezone
 
 
 class UserRole(BaseModel):
@@ -502,7 +502,7 @@ class UserSession(TimestampedModel, AuditMixin):
             # Handle timezone-aware or naive expire_date
             if timezone.is_naive(django_session.expire_date):
                 expire_date_utc = timezone.make_aware(
-                    django_session.expire_date, timezone=pytz.UTC
+                    django_session.expire_date, timezone=dt_timezone.utc
                 )
             else:
                 expire_date_utc = django_session.expire_date

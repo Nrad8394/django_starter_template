@@ -2,10 +2,18 @@ from celery import shared_task
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db.models import Count
+
 from .models import SecurityEvent, APIKey, AuditLog
 import logging
 
 logger = logging.getLogger(__name__)
+
+# `User` and `Count` were used in this module but never imported, so
+# generate_security_report() and the user-lockout task raised NameError the
+# first time Beat ran them — in a scheduled job, where nobody is watching.
+User = get_user_model()
 
 
 @shared_task(bind=True, max_retries=3)

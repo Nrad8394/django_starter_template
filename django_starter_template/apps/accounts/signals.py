@@ -1,85 +1,19 @@
-import logging
-from typing import Optional
-
-from django.contrib.auth import get_user_model
-from django.db.models.signals import post_save, pre_save, m2m_changed
-from django.dispatch import receiver
-
-from apps.notifications.services import NotificationService
-
-logger = logging.getLogger(__name__)
-User = get_user_model()
-
-
-@receiver(pre_save, sender=User)
-def _capture_previous_user_state(sender, instance: User, **kwargs):
-    """Capture previous values on the instance so post_save can detect changes.
-
-    We attach a transient attribute _previous_is_active used by post_save.
-    """
-    try:
-        if not instance.pk:
-            # New user; default previous state is inactive unless provided
-            instance._previous_is_active = False
-            return
-
-        prev = sender.objects.filter(pk=instance.pk).values("is_active").first()
-        instance._previous_is_active = bool(prev and prev.get("is_active"))
-    except Exception as e:
-        logger.exception("Failed to capture previous user state: %s", e)
-        instance._previous_is_active = False
-
-
-@receiver(post_save, sender=User)
-def user_post_save_send_account_notifications(sender, instance: User, created: bool, **kwargs):
-    """Send account-related notifications on user create and activation.
-
-    - On create => 'welcome'
-    - On activation (is_active changed False->True) => 'account_activated'
-    """
-    try:
-        # Welcome on creation
-        if created:
-            try:
-                NotificationService.send_account_notification(
-                    recipient=instance, notification_type="welcome"
-                )
-            except Exception:
-                logger.exception("Failed to send welcome notification for user %s", instance)
-
-        # Activation change detection
-        previous_active = getattr(instance, "_previous_is_active", False)
-        current_active = bool(getattr(instance, "is_active", False))
-        if not created and (not previous_active) and current_active:
-            try:
-                NotificationService.send_account_notification(
-                    recipient=instance, notification_type="account_activated"
-                )
-            except Exception:
-                logger.exception("Failed to send account_activated notification for user %s", instance)
-
-    except Exception as e:
-        logger.exception("Error in user_post_save_send_account_notifications: %s", e)
-
-
-@receiver(m2m_changed, sender=User.groups.through)
-def user_groups_changed_send_role_change(sender, instance: User, action: str, **kwargs):
-    """Notify user when their groups/roles change.
-
-    We treat any post_add/post_remove/post_clear as a role change.
-    """
-    try:
-        if action in ("post_add", "post_remove", "post_clear"):
-            try:
-                NotificationService.send_account_notification(
-                    recipient=instance, notification_type="role_changed"
-                )
-            except Exception:
-                logger.exception("Failed to send role_changed notification for user %s", instance)
-    except Exception:
-        logger.exception("Error handling user groups m2m_changed signal for user %s", instance)
 """
-Signals for the accounts app
+Signals for the accounts app.
+
+Note for anyone comparing against the template: this module used to be **two
+complete modules concatenated** — a second module docstring, a second set of
+imports, and a second `logger = ...` / `User = ...` began partway down the
+file. Both halves registered `post_save` handlers on `User`, so every user
+creation ran two different "send the welcome message" paths.
+
+The first half was removed. It duplicated the welcome notification, and its
+only unique behaviour — an `account_activated` notification on is_active
+False->True, and a `role_changed` notification on a groups m2m change — routed
+through `apps.notifications`, which is disabled (see
+settingsConfig/core/apps.py). Those two events are worth having; they should be
+re-implemented as explicit service calls in a reworked notifications app
+rather than as signals.
 """
 
 from django.db.models.signals import post_save
@@ -135,6 +69,20 @@ def send_user_creation_notification(sender, instance, created, **kwargs):
     5. Gracefully handles errors without failing user creation
     """
     if created:
+        # apps.notifications is not installed by default (see
+        # settingsConfig/core/apps.py for why). Without this guard every user
+        # creation logged an ERROR with a "no such table" traceback — noise
+        # that trains people to ignore ERROR lines, which is how a real failure
+        # gets missed. Depending on an optional app is the app's job to check.
+        from django.apps import apps as django_apps
+
+        if not django_apps.is_installed("apps.notifications"):
+            logger.debug(
+                "Skipping welcome notification for %s: apps.notifications is not installed.",
+                instance.email,
+            )
+            return
+
         try:
             # Import here to avoid circular imports
             from apps.notifications.models import NotificationTemplate

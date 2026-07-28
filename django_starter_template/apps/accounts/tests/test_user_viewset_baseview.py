@@ -80,18 +80,18 @@ class UserViewSetBaseViewTests(APITestCase):
             ]
             for c in direct_candidates:
                 # Check that a GET doesn't return 404
-                r = self.client.get(c + "?export_format=csv")
+                r = self.client.get(c + "?file_format=csv")
                 if r.status_code == status.HTTP_200_OK:
                     url = c
                     break
 
         if url:
             # Request CSV and XLSX via HTTP if we found a URL
-            resp_csv = self.client.get(url + "?export_format=csv")
+            resp_csv = self.client.get(url + "?file_format=csv")
             self.assertEqual(resp_csv.status_code, status.HTTP_200_OK)
             self.assertIn("text/csv", resp_csv["Content-Type"])
 
-            resp_xlsx = self.client.get(url + "?export_format=xlsx")
+            resp_xlsx = self.client.get(url + "?file_format=xlsx")
             self.assertEqual(resp_xlsx.status_code, status.HTTP_200_OK)
             self.assertIn(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -106,30 +106,58 @@ class UserViewSetBaseViewTests(APITestCase):
                 def __init__(self, q):
                     self.query_params = q
 
-            resp_csv = view.bulk_import_template(FakeRequest({"export_format": "csv"}))
+            resp_csv = view.bulk_import_template(FakeRequest({"file_format": "csv"}))
             self.assertIn("text/csv", resp_csv["Content-Type"])
 
             resp_xlsx = view.bulk_import_template(
-                FakeRequest({"export_format": "xlsx"})
+                FakeRequest({"file_format": "xlsx"})
             )
             self.assertIn(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 resp_xlsx["Content-Type"],
             )
 
-    def test_bulk_export_default_xlsx(self):
-        # create a couple of users to export
+    def test_bulk_export_defaults_to_csv_and_honours_file_format(self):
+        """Export defaults to CSV; XLSX is opt-in via ?file_format=xlsx.
+
+        This test previously asserted XLSX-by-default and passed the format as
+        `export_format`. Both were the deprecated apps.core.views base class's
+        contract. apps.core.viewsets reads `file_format` and defaults to CSV —
+        the cheaper format to stream, which matters because export is now
+        row-capped rather than unbounded.
+        """
         User.objects.create_user(email="export1@example.com", password="pass")
         User.objects.create_user(email="export2@example.com", password="pass")
 
         self.client.force_authenticate(user=self.admin)
         url = "/api/v1/accounts/users/bulk_export/"
+
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("text/csv", resp["Content-Type"])
+
+        resp_xlsx = self.client.get(url + "?file_format=xlsx")
+        self.assertEqual(resp_xlsx.status_code, status.HTTP_200_OK)
         self.assertIn(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            resp["Content-Type"],
+            resp_xlsx["Content-Type"],
         )
+
+    def test_bulk_export_is_limited_to_the_allowlist(self):
+        """The export must not leak fields outside UserViewSet.export_fields.
+
+        The deprecated base defaulted to every concrete model field, so the
+        password hash shipped in the export. This pins the fix.
+        """
+        User.objects.create_user(email="secret@example.com", password="pass")
+        self.client.force_authenticate(user=self.admin)
+
+        resp = self.client.get("/api/v1/accounts/users/bulk_export/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        header = resp.content.decode("utf-8", errors="ignore").splitlines()[0]
+        self.assertNotIn("password", header.lower())
+        self.assertIn("email", header.lower())
 
     def test_statistics_action_includes_extra_stats(self):
         # create some users

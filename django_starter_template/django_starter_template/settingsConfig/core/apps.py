@@ -71,11 +71,28 @@ LOCAL_APPS = [
     "apps.core.apps.CoreConfig",
     # Provides AUTH_USER_MODEL ("accounts.User"). Must stay enabled.
     "apps.accounts.apps.AccountsConfig",
+    # Shipped commented-out as "optional", but apps/core/services.py imports
+    # apps.security.models.AuditLog at module scope — so core never actually
+    # worked without it, and `manage.py check` failed on a fresh checkout with
+    # an app_label error. Projects that genuinely do not want it should
+    # remove the AuditLog import from apps/core/services.py in the same change.
+    "apps.security.apps.SecurityConfig",
     # ------------------------------------------------------------------
-    # Optional apps shipped with the template. Each is self-contained;
-    # enable what you need, then run `makemigrations`.
-    # ------------------------------------------------------------------
-    # "apps.security.apps.SecurityConfig",
+    # apps.notifications — DISABLED, deliberately. Enabling it cost 12 test
+    # failures and took the suite from seconds to 16m30s. Three defects, all
+    # pre-existing in the template:
+    #
+    #   1. signals.py:41 calls send_notification.delay() inside a post_save
+    #      handler and reaches the broker even under CELERY_TASK_ALWAYS_EAGER.
+    #      With no Redis running, each save blocks on a TCP connect timeout —
+    #      142 of them across the suite. A signal must never do network I/O.
+    #   2. signals.py:251 imports `apps.workflow`, an app that does not exist.
+    #   3. signals.py:203 assumes every User has `notification_preferences`;
+    #      nothing creates it, so the handler raises on every user.
+    #
+    # If your project needs outbound messaging, rework it first: move the send
+    # out of signals into an explicitly-called service. Re-enable only after
+    # that rework — do not switch this on as-is.
     # "apps.notifications.apps.NotificationsConfig",
 ]
 

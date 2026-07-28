@@ -1,6 +1,12 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from accounts.models import User
+from django.contrib.auth import get_user_model
+
+# Was `from accounts.models import User` — a module path that does not exist
+# (the app is `apps.accounts`), so importing this module raised ImportError.
+# get_user_model() is also the correct form regardless: AUTH_USER_MODEL is
+# swappable and a direct import hardcodes one implementation.
+User = get_user_model()
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 import re

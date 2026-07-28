@@ -51,6 +51,11 @@ from .schema import (
 
 User = get_user_model()
 
+import logging
+
+# Referenced at ~line 267 but never defined.
+logger = logging.getLogger(__name__)
+
 
 @extend_schema_view(
     list=extend_schema(

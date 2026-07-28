@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 import logging
-from apps.core.views import BaseModelViewSet
+from apps.core.viewsets import BaseModelViewSet
 from django.db.models import Prefetch
 from django.contrib.auth.models import Permission
 from drf_spectacular.utils import (
@@ -112,6 +112,27 @@ class UserViewSet(BaseModelViewSet):
     search_fields = APIConstants.USER_SEARCH_FIELDS
     ordering_fields = APIConstants.USER_ORDERING_FIELDS
     ordering = ["-created_at"]
+
+    # Explicit export allowlist (apps.core.viewsets requires one; empty
+    # disables export entirely). The deprecated base class defaulted to every
+    # concrete model field, which on User meant the password hash, security
+    # answers and soft-delete bookkeeping were downloadable by anyone who could
+    # list users. Add a field here only after deciding it is safe to hand out
+    # in bulk — this list is a disclosure decision, not a convenience.
+    export_fields = [
+        "id",
+        "email",
+        "username",
+        "first_name",
+        "last_name",
+        "phone_number",
+        "ward",
+        "constituency",
+        "county",
+        "is_active",
+        "date_joined",
+        "created_at",
+    ]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,

@@ -9,7 +9,7 @@ Supports multiple backends: Local filesystem, AWS S3, Google Cloud Storage, etc.
 Reference: https://django-storages.readthedocs.io/
 """
 import os
-from ..env import get_env
+from ..env import get_env, get_bool
 
 # Project root directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -120,7 +120,7 @@ AZURE_CUSTOM_DOMAIN = get_env('AZURE_CUSTOM_DOMAIN', default=None)
 MINIO_ENDPOINT = get_env('MINIO_ENDPOINT', default='localhost:9000')
 MINIO_ACCESS_KEY = get_env('MINIO_ACCESS_KEY', default='minioadmin')
 MINIO_SECRET_KEY = get_env('MINIO_SECRET_KEY', default='minioadmin')
-MINIO_BUCKET_NAME = get_env('MINIO_BUCKET_NAME', default='smartlandlord')
+MINIO_BUCKET_NAME = get_env('MINIO_BUCKET_NAME', default='django_starter_template')
 MINIO_USE_SSL = get_env('MINIO_USE_SSL', default=False, cast=lambda v: str(v).lower() in ("true", "1", "yes", "on"))
 MINIO_SECURE = get_env('MINIO_SECURE', default=False, cast=lambda v: str(v).lower() in ("true", "1", "yes", "on"))
 
@@ -195,12 +195,12 @@ FILE_UPLOAD_HANDLERS = [
 
 # Pillow/image processing settings
 THUMBNAIL_BACKEND = get_env('THUMBNAIL_BACKEND', default='sorl.thumbnail.base.ThumbnailBackend')
-THUMBNAIL_DEBUG = get_env('THUMBNAIL_DEBUG', default=False, cast=bool)
+THUMBNAIL_DEBUG = get_bool('THUMBNAIL_DEBUG', default=False)
 THUMBNAIL_SIZE = (300, 300)
 
 # Image conversion settings
 IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-OPTIMIZE_IMAGES = get_env('OPTIMIZE_IMAGES', default=True, cast=bool)
+OPTIMIZE_IMAGES = get_bool('OPTIMIZE_IMAGES', default=True)
 
 # ============================================================================
 # PRIVATE VS PUBLIC FILES
@@ -215,7 +215,7 @@ PUBLIC_STORAGE_LOCATION = get_env('PUBLIC_STORAGE_LOCATION', default='public/')
 # ============================================================================
 
 # Delete files when models are deleted
-DELETE_FILES_ON_MODEL_DELETE = get_env('DELETE_FILES_ON_MODEL_DELETE', default=True, cast=bool)
+DELETE_FILES_ON_MODEL_DELETE = get_bool('DELETE_FILES_ON_MODEL_DELETE', default=True)
 
 # Maximum age for temporary files (in seconds)
 TEMP_FILE_MAX_AGE = get_env('TEMP_FILE_MAX_AGE', default=86400, cast=int)  # 24 hours
@@ -226,20 +226,34 @@ TEMP_FILE_MAX_AGE = get_env('TEMP_FILE_MAX_AGE', default=86400, cast=int)  # 24 
 
 # MinIO storage backend configuration
 MINIO_HOST = get_env("MINIO_HOST", default=get_env("MINIO_STORAGE_ENDPOINT", default="localhost:9000"))
-MINIO_USE_HTTPS = get_env("MINIO_USE_HTTPS", default=False, cast=bool)
+MINIO_USE_HTTPS = get_bool("MINIO_USE_HTTPS", default=False)
 MINIO_ACCESS_KEY = get_env("MINIO_ACCESS_KEY", default=get_env("MINIO_STORAGE_ACCESS_KEY", default="minioadmin"))
 MINIO_SECRET_KEY = get_env("MINIO_SECRET_KEY", default=get_env("MINIO_STORAGE_SECRET_KEY", default="minioadmin"))
 MINIO_DEFAULT_BUCKET = get_env("MINIO_DEFAULT_BUCKET", default=get_env("MINIO_STORAGE_MEDIA_BUCKET_NAME", default="app-media"))
 MINIO_STATIC_BUCKET = get_env("MINIO_STATIC_BUCKET", default=get_env("MINIO_STORAGE_STATIC_BUCKET_NAME", default=f"{MINIO_DEFAULT_BUCKET}-static"))
-MINIO_CONSISTENCY_CHECK_ON_START = get_env("MINIO_CONSISTENCY_CHECK_ON_START", default=False, cast=bool)
-MINIO_BUCKET_CHECK_ON_SAVE = get_env("MINIO_BUCKET_CHECK_ON_SAVE", default=True, cast=bool)
+MINIO_CONSISTENCY_CHECK_ON_START = get_bool("MINIO_CONSISTENCY_CHECK_ON_START", default=False)
+MINIO_BUCKET_CHECK_ON_SAVE = get_bool("MINIO_BUCKET_CHECK_ON_SAVE", default=True)
 
 from datetime import timedelta
 MINIO_URL_EXPIRY_HOURS = timedelta(hours=get_env("MINIO_URL_EXPIRY_HOURS", default=24, cast=int))
 
-# Configure storage backends
-STORAGES = {
-    "default": {
+# ---------------------------------------------------------------------------
+# STORAGES — selected by STORAGE_BACKEND_TYPE, not hardcoded
+# ---------------------------------------------------------------------------
+# The template hardcoded `django_minio_backend` here for both default and
+# staticfiles. Three problems, all of which broke a fresh checkout:
+#
+#   1. `django_minio_backend` was never a declared dependency, so `manage.py
+#      check` died at import on any machine that had not installed it by hand.
+#   2. It made STORAGE_BACKEND_TYPE (declared above, documented as defaulting
+#      to 'local') dead code — 'local' could never take effect.
+#   3. It required a running MinIO just to run the test suite or a migration.
+#
+# Object storage matters in production for many projects — but it must be
+# opt-in, not the precondition for `manage.py check`.
+if STORAGE_BACKEND_TYPE == "minio":
+    # Requires `django-minio-backend` — add it to pyproject before selecting.
+    _default_storage = {
         "BACKEND": "django_minio_backend.models.MinioBackend",
         "OPTIONS": {
             "MINIO_ENDPOINT": MINIO_HOST,
@@ -254,21 +268,33 @@ STORAGES = {
             "MINIO_BUCKET_CHECK_ON_SAVE": MINIO_BUCKET_CHECK_ON_SAVE,
             "MINIO_URL_EXPIRY_HOURS": MINIO_URL_EXPIRY_HOURS,
         },
-    },
+    }
+    MEDIA_URL = f"{'https' if MINIO_USE_HTTPS else 'http'}://{MINIO_HOST}/{MINIO_DEFAULT_BUCKET}/"
+elif STORAGE_BACKEND_TYPE == "s3":
+    # django-storages[s3] is a declared dependency; AWS_* settings are above.
+    _default_storage = {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}
+    MEDIA_URL = get_env("MEDIA_URL", default="/media/")
+else:
+    _default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+    MEDIA_URL = get_env("MEDIA_URL", default="/media/")
+
+# Static files are served by whitenoise (a declared dependency) rather than
+# object storage. Manifest hashing is production-only: it requires
+# `collectstatic` to have run, and failing hard on a missing entry is exactly
+# what you want in production and exactly what you do not want in development.
+# Read DEBUG from the environment rather than the settings namespace: these
+# settingsConfig modules are star-imported fragments and there is no guaranteed
+# ordering that puts DEBUG in scope here.
+STORAGES = {
+    "default": _default_storage,
     "staticfiles": {
-        "BACKEND": "django_minio_backend.models.MinioBackendStatic",
-        "OPTIONS": {
-            "MINIO_ENDPOINT": MINIO_HOST,
-            "MINIO_ACCESS_KEY": MINIO_ACCESS_KEY,
-            "MINIO_SECRET_KEY": MINIO_SECRET_KEY,
-            "MINIO_USE_HTTPS": MINIO_USE_HTTPS,
-            "MINIO_STATIC_FILES_BUCKET": MINIO_STATIC_BUCKET,
-            "MINIO_BUCKET_CHECK_ON_SAVE": MINIO_BUCKET_CHECK_ON_SAVE,
-        },
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if get_bool("DEBUG", default=False)
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
     },
 }
 
-# Construct URLs from configured host/protocol so they adapt to env changes
-MEDIA_URL = f"{'https' if MINIO_USE_HTTPS else 'http'}://{MINIO_HOST}/{MINIO_DEFAULT_BUCKET}/"
-STATIC_URL = f"{'https' if MINIO_USE_HTTPS else 'http'}://{MINIO_HOST}/{MINIO_STATIC_BUCKET}/"
+STATIC_URL = get_env("STATIC_URL", default="/static/")
 

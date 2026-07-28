@@ -102,7 +102,16 @@ class UserService:
             logger.info(
                 f"User role changed: {user.email} from {old_role} to {new_role}"
             )
-            # Trigger a role change notification for the user (non-blocking)
+            # Trigger a role change notification for the user (non-blocking).
+            # Guarded because apps.notifications is not installed by default —
+            # see settingsConfig/core/apps.py.
+            from django.apps import apps as django_apps
+
+            if not django_apps.is_installed("apps.notifications"):
+                # `return True` — the role change itself succeeded. A bare
+                # `return` would yield None here, which callers read as failure.
+                return True
+
             try:
                 from apps.notifications.services import NotificationService
                 from apps.notifications.models import NotificationEvent
