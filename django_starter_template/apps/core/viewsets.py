@@ -61,6 +61,7 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_sche
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
@@ -257,9 +258,21 @@ class BaseModelViewSet(SoftDeleteQueryMixin, viewsets.ModelViewSet):
         """
         if self.is_schema_request():
             queryset = getattr(self, "queryset", None)
-            return queryset.none() if queryset is not None else super().get_queryset()
+            return queryset.none() if queryset is not None else GenericAPIView.get_queryset(self)
 
-        queryset = super().get_queryset()
+        # Not `super().get_queryset()`: this method is shared verbatim by
+        # ReadOnlyBaseModelViewSet (`get_queryset = BaseModelViewSet.
+        # get_queryset` below), whose instances are not a subtype of
+        # BaseModelViewSet — a zero-arg `super()` closes over `__class__` at
+        # definition time (`BaseModelViewSet`) and raises `TypeError: super
+        # (type, obj): obj must be an instance or subtype of type` the moment
+        # such a viewset actually calls list()/retrieve(). Every DRF viewset
+        # in this hierarchy eventually reaches `GenericAPIView.get_queryset`
+        # with no override in between, so calling it directly is equivalent
+        # to the old `super().get_queryset()` for BaseModelViewSet's own
+        # subclasses and, unlike that call, also correct for
+        # ReadOnlyBaseModelViewSet's.
+        queryset = GenericAPIView.get_queryset(self)
         queryset = self.apply_soft_delete_filter(queryset)
 
         model_fields = {field.name for field in queryset.model._meta.get_fields()}
