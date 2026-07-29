@@ -82,7 +82,15 @@ LOGGING = {
 # MIDDLEWARE AND APPS
 # =============================================================================
 # Remove debug tools from tests
-MIDDLEWARE = [m for m in MIDDLEWARE if "debug_toolbar" not in m]
+# WhiteNoise goes too, alongside the debug toolbar. It reads STATIC_ROOT at
+# middleware construction — once per test client — and warns "No directory
+# at: .../staticfiles/" on any checkout where collectstatic has not run.
+# This project turns warnings into errors, so that warning fails 22 tests
+# that have nothing to do with static files. Tests serve no static assets;
+# the middleware has no job here.
+MIDDLEWARE = [
+    m for m in MIDDLEWARE if "debug_toolbar" not in m and "whitenoise" not in m
+]
 INSTALLED_APPS = [
     app for app in INSTALLED_APPS
     if app not in ["debug_toolbar", "django_browser_reload"]

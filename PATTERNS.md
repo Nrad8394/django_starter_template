@@ -1225,3 +1225,59 @@ installed** — `django.apps.apps.is_installed()` and
 `get_commands()` — instead of hard-coding a list that drifts. **An
 unavailable app is a skip with a reason, not a failure.** **Exit non-zero
 when something failed.**
+
+## 27. Developing on a different database from production
+
+The compose file provisioned Postgres, blocked the api container until it
+reported healthy, and injected its credentials. `development.py` hard-coded
+SQLite, with the Postgres block commented out immediately below it. The
+container ran, stayed healthy, and was never once connected to.
+
+The cost is not the wasted container. It is that **SQLite does not enforce
+`varchar` length at all.** Three seed migrations wrote notes of up to 663
+characters into a `CharField(255)`; SQLite stored them and moved on, so the
+suite was green and the app worked. The first time the stack actually ran on
+Postgres, `migrate` died:
+
+    DataError: value too long for type character varying(255)
+
+Those migrations had never been able to apply to Postgres. They would have
+failed on the first production deploy, during `migrate`, before the
+application started — the worst possible moment to discover it, and one no
+amount of testing on SQLite could have surfaced.
+
+SQLite also defers constraint checks differently, has far weaker locking, and
+silently accepts several things Postgres rejects. **Development must run the
+engine production runs.** The SQLite path stays as `USE_SQLITE=True`, opt-in,
+so a fresh clone with no services can still boot — but a machine with no
+Postgres now says so rather than quietly testing something else.
+
+**Discrete `POSTGRES_*` variables, not a `DATABASE_URL`.** Each part is
+separately overridable, and a typo names the field it broke instead of hiding
+inside a URL. The Dockerfile's startup check was requiring `DATABASE_URL` —
+a variable nothing in the settings read — so it failed correctly configured
+containers and passed misconfigured ones. Require what the settings consume.
+
+## 28. A dependency you never enable is not a feature
+
+`whitenoise` was a declared dependency. `STORAGES` already selected
+`CompressedManifestStaticFilesStorage` whenever `DEBUG` was off. Everything
+was in place except the one line that does the work:
+`WhiteNoiseMiddleware` was commented out.
+
+So with `DEBUG=False` nothing served static files — Django's own staticfiles
+view is disabled there too — and the admin rendered unstyled in exactly the
+environment where nobody is watching the console for 404s. Enabled it.
+
+Two follow-ons worth knowing:
+
+- **Drop it from the test profile.** WhiteNoise reads `STATIC_ROOT` when the
+  middleware is constructed — once per test client — and warns `No directory
+  at: .../staticfiles/` wherever `collectstatic` has not run. This template
+  turns warnings into errors, so that one warning failed 22 tests with
+  nothing to do with static files. Tests serve no static assets.
+- **The bug hid behind a directory.** The project where this was found had a
+  `staticfiles/` directory left over from a manual `collectstatic`, so its
+  suite passed while a fresh clone's would not have. Verify a change like
+  this by deleting the artefact and running the suite the way a new checkout
+  would.

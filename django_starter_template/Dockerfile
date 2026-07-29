@@ -191,8 +191,12 @@ export GUNICORN_MAX_REQUESTS_JITTER="${GUNICORN_MAX_REQUESTS_JITTER:-100}"
 export PORT="${PORT:-8000}"
 
 # Fail loudly at start rather than serving 500s once traffic arrives.
+# POSTGRES_HOST, not DATABASE_URL: the settings modules read discrete
+# POSTGRES_* variables (settingsConfig/development.py, production.py), so
+# requiring a URL nothing consumes would fail a correctly configured
+# container and pass a misconfigured one.
 _missing=""
-for _var in SECRET_KEY DATABASE_URL; do
+for _var in SECRET_KEY POSTGRES_HOST POSTGRES_DB POSTGRES_USER; do
     eval "_val=\"\${${_var}:-}\""
     [ -z "${_val}" ] && _missing="${_missing} ${_var}"
 done

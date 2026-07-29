@@ -44,28 +44,53 @@ CSRF_COOKIE_PATH = "/"
 # DATABASE
 # =============================================================================
 # Use SQLite for easy local development (no PostgreSQL setup needed)
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        "OPTIONS": {
-            "timeout": 60,
-        },
+# Postgres by default, SQLite only when explicitly asked for.
+#
+# This used to hard-code SQLite with the Postgres block commented out just
+# below it, and the effect was easy to miss: `docker compose` provisions
+# Postgres, blocks the api container until it reports healthy — and Django
+# ignored it. The container ran, stayed healthy, and was never once
+# connected to.
+#
+# That is worse than an unused container. Every local run exercised a
+# different database engine from production: SQLite does not enforce
+# `varchar` length, defers constraint checks differently, and has far weaker
+# locking. Switching this over immediately surfaced a migration that had
+# never been able to apply to Postgres at all (regulation
+# 0004_widen_threshold_notes) — it would have failed on the first production
+# deploy, during migrate, before the app ever started.
+#
+# Discrete POSTGRES_* variables rather than a DATABASE_URL, matching the
+# convention already used across the group's other backends: each part is
+# separately overridable, a typo names the field it broke, and nothing has
+# to parse a URL to find out which database it is talking to.
+#
+# USE_SQLITE=True is the escape hatch for a fresh clone with no services
+# running — opt-in, so a machine with no Postgres says so rather than
+# silently testing something else.
+if get_bool("USE_SQLITE", default=False):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+            "OPTIONS": {"timeout": 60},
+        }
     }
-}
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": get_env("POSTGRES_DB", default="django_starter_template_db"),
-#         "USER": get_env("POSTGRES_USER", default="postgres"),
-#         "PASSWORD": get_env("POSTGRES_PASSWORD", default=""),
-#         "HOST": get_env("DB_HOST", default="localhost"),
-#         "PORT": get_env("DB_PORT", default="5433", cast=int),
-#         "CONN_MAX_AGE": 0,  # Disable persistent connections with PgBouncer
-#         "CONN_HEALTH_CHECKS": True,
-#     }
-# }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": get_env("POSTGRES_DB", default="app_db"),
+            "USER": get_env("POSTGRES_USER", default="app_user"),
+            "PASSWORD": get_env("POSTGRES_PASSWORD", default="app_password"),
+            # `db` is the compose service name; localhost is right when you
+            # run manage.py on the host against the published port.
+            "HOST": get_env("POSTGRES_HOST", default="localhost"),
+            "PORT": get_env("POSTGRES_PORT", default="5432"),
+            "CONN_MAX_AGE": 0,
+            "CONN_HEALTH_CHECKS": True,
+        }
+    }
 
 # =============================================================================
 # CACHING

@@ -33,10 +33,19 @@ MIDDLEWARE = [
     "apps.core.middleware.APIErrorEnvelopeMiddleware",
     # --- Django core ------------------------------------------------------
     "django.middleware.security.SecurityMiddleware",
-    # WhiteNoise serves static files straight from the app process. Enable it
-    # if you are not putting a CDN or nginx in front; it must sit immediately
-    # after SecurityMiddleware.
-    # "whitenoise.middleware.WhiteNoiseMiddleware",
+    # WhiteNoise serves static files straight from the app process, and must
+    # sit immediately after SecurityMiddleware.
+    #
+    # Enabled, not commented out. STORAGES already selects
+    # CompressedManifestStaticFilesStorage whenever DEBUG is off, and
+    # whitenoise is a declared dependency — but with the middleware disabled
+    # nothing served those files. With DEBUG=False Django's own staticfiles
+    # view switches off too, so the admin rendered unstyled in exactly the
+    # environment where nobody is watching the console for 404s.
+    #
+    # Harmless in front of a CDN or nginx: those intercept /static/ before
+    # the request reaches Django, so this only ever handles what they do not.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     # CSRF applies to the session-authenticated surface: the admin, and
