@@ -1168,3 +1168,60 @@ the dev server; env files are read at startup only.**
 
 The general rule: **a default that is correct in one environment and silently
 wrong in another must announce itself in the environment where it is wrong.**
+
+## 25. A third pocket of domain leakage, and where to look for the fourth
+
+§18 removed the original project's domain from views, URLs and serializers.
+This round a consuming project's initialization output printed:
+
+    Permission accounts.can_view_institution_module not found
+    Permission accounts.can_view_academics_module not found
+    Permission accounts.can_view_scheduling_module not found
+    Permission accounts.can_view_attendance_module not found
+
+Four school-management modules, still granted to the admin role in
+`apps/accounts/constants.py`. §18's sweep read code; this was **data** — a
+literal list in a constants file with no imports to follow and no test that
+touches it. That is the general lesson: leakage hides in configuration
+before it hides in code, because nothing type-checks a string.
+
+Grep the *data* too — `constants.py`, `choices`, fixtures, default settings,
+seed commands, admin `list_display` — not just the modules that behave.
+
+Two more defects came out of the same file and command:
+
+- **`can_manage_roles` was created on two content types** (User and
+  UserRole), so the initializer warned "Multiple permissions found" on every
+  run and then guessed. A permission belongs to exactly one model; the
+  ambiguity was self-inflicted.
+- **Permissions were listed for an app that is not installed.** Whatever the
+  reason an app is disabled, its permissions do not exist, and referencing
+  them turns every run into a wall of warnings that trains people to ignore
+  the output.
+
+## 26. Initialization commands are production commands
+
+`initialize_all_apps` looked harmless and was not.
+
+- It **hard-coded `clear=True`** while advertising a `--clear` flag it then
+  ignored, and the accounts clear path is `User.objects.all().delete()`. The
+  documented setup command wiped the user table. It had never fired only
+  because an unused `faker` import raised first — one bug was masking the
+  other.
+- It **shipped a superuser credential in source**: `admin@gmail.com` /
+  `user@12345`, `is_superuser=True`. A published backdoor, created by a
+  command whose name invites running it against a fresh production database.
+- It **listed apps from a literal dict** rather than the app registry, so a
+  disabled app was reported as a red failure on every run.
+- It **always exited 0**, so no deploy script could detect a failure.
+- `--sample-users 0` silently became 5, and `--force` was documented in the
+  help text but passed to nothing.
+
+The rules: **a destructive flag must be opt-in, refused outside `DEBUG`
+without `--force`, and confirmed unless `--noinput`.** **Credentials come
+from the environment; generate and print once when unset, and decline
+outright rather than inventing a default.** **Ask the framework what is
+installed** — `django.apps.apps.is_installed()` and
+`get_commands()` — instead of hard-coding a list that drifts. **An
+unavailable app is a skip with a reason, not a failure.** **Exit non-zero
+when something failed.**

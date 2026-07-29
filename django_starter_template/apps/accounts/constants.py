@@ -21,7 +21,20 @@ class UserRoleConstants:
     DEFAULT_ROLE = ADMIN
 
 
-# Role Definitions for Management Commands
+# Role Definitions for Management Commands.
+#
+# These are *platform* roles — who may administer the software. A person's
+# standing in the party (chair, treasurer, signatory, auditor, branch officer)
+# is not modelled here: it lives on `apps.tenancy.CommitteeMembership.Role`,
+# scoped to the committee it applies to, because the same person holds
+# different offices in different committees. Adding party seats here would
+# create a second, unscoped answer to "what may this person do".
+#
+# The module permissions below were inherited from the template's original
+# project and listed `institution`, `academics`, `scheduling` and
+# `attendance` — a school management system's modules. Nothing created them,
+# so every initialization run printed four "Permission not found" lines.
+# Removed 2026-07-29.
 ROLE_DEFINITIONS = {
     UserRoleConstants.ADMIN: {
         "description": _("Administrator with full access to user management"),
@@ -46,29 +59,16 @@ ROLE_DEFINITIONS = {
             "view_userrolehistory",
             "can_view_dashboard",
             "accounts.can_view_accounts_module",
-            "accounts.can_view_institution_module",
-            "accounts.can_view_academics_module",
-            "accounts.can_view_scheduling_module",
-            "accounts.can_view_attendance_module",
             "accounts.can_view_security_module",
             "can_manage_users",
             "can_assign_roles",
             "can_view_all_users",
             "can_manage_permissions",
             "can_manage_roles",
-            # Notifications - Full access
-            "view_notification",
-            "add_notification",
-            "change_notification",
-            "delete_notification",
-            "view_notificationtemplate",
-            "add_notificationtemplate",
-            "change_notificationtemplate",
-            "delete_notificationtemplate",
-            "view_notificationdelivery",
-            "view_notificationpreference",
-            "change_notificationpreference",
-            "view_notificationevent",
+            # Notifications: intentionally absent. apps.notifications is not in
+            # INSTALLED_APPS, so its permissions do not exist and listing them
+            # only produced "Permission view_notification not found" on every
+            # initialize run. Restore this block when the app is re-enabled.
             # Security - Full access
             "view_auditlog",
             "view_ratelimit",
