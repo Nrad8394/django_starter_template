@@ -1123,3 +1123,48 @@ The rule this round adds: **after cold-starting, leave it running and read the
 logs.** `docker compose ps` should show every service `healthy`, and a
 `--since` grep for tracebacks should come back empty — both checked minutes
 after startup, not seconds.
+
+## 23. Frontend: the token layer only works if everything uses it
+
+Companion to §21's neutral token layer. Shipping the tokens was half the job;
+the pages and the entity layer still styled themselves from the raw Tailwind
+palette — `bg-blue-600` primary buttons, `border-gray-300` inputs, `bg-white`
+dropdowns — so a project that re-themed the tokens changed nothing visible.
+Every consuming project then had to make the same migration by hand.
+
+Two defects only a real dark mode exposes:
+
+- **A focus ring offset with no background token paints white.** `focus:ring-2
+  focus:ring-offset-1` renders the offset gap in the default colour, which
+  haloes every focused input on a dark surface. It needs
+  `focus:ring-offset-background`.
+- **Status badges that hardcode both schemes are doing a token's job badly.**
+  `bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300` becomes
+  `bg-destructive/12 text-destructive` — one pair, correct in both themes,
+  and it follows the project's brand instead of ignoring it.
+
+The rule: **if a class names a colour, it is a bug.** Grep for
+`-(gray|slate|blue|red|green|amber)-\d` before publishing.
+
+**Also shipped this round:** a `ThemeToggle`. The template had tokens for both
+schemes, a provider, and a blocking anti-flash script — and no control that
+ever called `setTheme`, so every user was pinned to their OS preference.
+Three states (light / dark / **system**), because a two-way toggle leaves no
+way back to following the OS once it has been pressed.
+
+## 24. The `/api` default is correct in production and a trap in `next dev`
+
+`getApiUrl()` falls back to `/api`, a same-origin path that assumes a reverse
+proxy in front of both the app and the API. That is right for production and
+silently fatal in development: nothing serves that path under `next dev`, so
+every request lands on the Next server and 404s. The app renders perfectly,
+the console shows no error worth reading, and the API is simply never reached.
+The README said `cp .env.example .env.local`; nothing enforced it, and one
+project ran for days without it.
+
+`lib/env.ts` now emits a development-only warning the first time it falls
+back, naming the cause and the fix, including the part people miss — **restart
+the dev server; env files are read at startup only.**
+
+The general rule: **a default that is correct in one environment and silently
+wrong in another must announce itself in the environment where it is wrong.**
