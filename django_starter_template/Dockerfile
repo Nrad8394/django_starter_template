@@ -97,9 +97,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     pip install --no-cache-dir "uv==${UV_VERSION}"
 
 # Layer C — only the manifests, so source edits do not invalidate it.
-COPY pyproject.toml uv.lock* ./
+# README.md is metadata pyproject declares (readme = "README.md"); hatchling
+# refuses to build the wheel without it, so it must ride with the manifests.
+COPY pyproject.toml uv.lock* README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --python "${VENV_PATH}/bin/python" .
+    uv pip install --python "${VENV_PATH}/bin/python" -r pyproject.toml
 
 
 # =============================================================================
@@ -244,7 +246,7 @@ USER appuser:appgroup
 LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}" \
       org.opencontainers.image.revision="${VCS_REF:-unknown}" \
       org.opencontainers.image.version="${VERSION:-unknown}" \
-      org.opencontainers.image.title="django-starter-template" \
+      org.opencontainers.image.title="django_starter_template" \
       org.opencontainers.image.base.name="python:${PYTHON_VERSION}-slim-bookworm"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]

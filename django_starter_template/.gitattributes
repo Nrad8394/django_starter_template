@@ -1,0 +1,8 @@
+
+# Files whose CONTENT breaks with CRLF in the working tree: Dockerfile
+# heredocs (a terminator with \r glued on never matches, so `docker build`
+# dies mid-heredoc on a Windows checkout) and shell scripts. `text=auto`
+# only normalizes commits; these need LF ON DISK, hence explicit eol=lf.
+Dockerfile text eol=lf
+*.sh text eol=lf
+docker-compose.yml text eol=lf

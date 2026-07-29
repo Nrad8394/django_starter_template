@@ -99,14 +99,18 @@ CORS_ALLOW_ALL_ORIGINS = True
 # =============================================================================
 # DEBUG TOOLBAR AND DEVELOPMENT TOOLS
 # =============================================================================
-INSTALLED_APPS += [
-    "debug_toolbar",
-    "django_browser_reload",
-]
-MIDDLEWARE += [
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
-    "django_browser_reload.middleware.BrowserReloadMiddleware",
-]
+# Enabled only when actually installed. These live in the [dev] extra, so a
+# production-shaped image (deps-only) that happens to boot with
+# DJANGO_ENV=development must not crash on an import the image never
+# shipped. Dev tooling is a bonus where present, never a boot requirement.
+import importlib.util as _ilu
+
+if _ilu.find_spec("debug_toolbar"):
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+if _ilu.find_spec("django_browser_reload"):
+    INSTALLED_APPS += ["django_browser_reload"]
+    MIDDLEWARE += ["django_browser_reload.middleware.BrowserReloadMiddleware"]
 
 INTERNAL_IPS = ["127.0.0.1", "localhost"]
 
