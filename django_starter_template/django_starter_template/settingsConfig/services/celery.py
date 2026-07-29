@@ -34,12 +34,14 @@ CELERY_BROKER_CONNECTION_MAX_RETRIES = get_env('CELERY_BROKER_CONNECTION_MAX_RET
 # CELERY RESULT BACKEND SETTINGS
 # ============================================================================
 
-# Result backend (Where task results are stored)
-CELERY_RESULT_BACKEND = get_env(
-    'CELERY_RESULT_BACKEND',
-    default='redis://localhost:6379/1'
-)
-CELERY_RESULT_BACKEND = get_env('CELERY_RESULT_BACKEND', default='django-db')  # Use Django database for results
+# Result backend (where task results are stored). Defaults to the Django
+# database via django_celery_results, which is already in INSTALLED_APPS —
+# results survive a Redis flush and are inspectable in the admin. Point
+# CELERY_RESULT_BACKEND at a Redis DB (distinct from the broker's) if you
+# would rather have them expire on their own.
+# (Was two consecutive assignments to this name, the second silently
+# discarding the first; the surviving default is the one kept here.)
+CELERY_RESULT_BACKEND = get_env('CELERY_RESULT_BACKEND', default='django-db')
 # Result backend options
 CELERY_RESULT_EXPIRES = get_env('CELERY_RESULT_EXPIRES', default=3600, cast=int)  # 1 hour
 CELERY_RESULT_EXTENDED = get_bool('CELERY_RESULT_EXTENDED', default=True)

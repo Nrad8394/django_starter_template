@@ -90,6 +90,11 @@ services:
     environment:
       DJANGO_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-app_db}
+      # Every host-facing URL in .env points at localhost, which inside a
+      # container means "this container". Each service must override ALL of
+      # them, not just the ones it obviously uses — a task that touches the
+      # cache fails just as hard as one that can't reach the broker.
+      REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/2
       CELERY_RESULT_BACKEND: redis://redis:6379/3
     volumes:
@@ -103,6 +108,17 @@ services:
     # --concurrency is low on purpose: locally you want to notice a task that
     # blocks, not have it hidden by parallelism.
     command: celery -A django_starter_template worker --loglevel=info --concurrency=2
+    healthcheck:
+      # The image's HEALTHCHECK curls the API's /health/ endpoint. A worker
+      # serves no HTTP, so it would report unhealthy forever. Ask Celery
+      # instead: `inspect ping` round-trips a control message through the
+      # broker to this specific worker, so it proves broker connectivity and
+      # a responsive main process in one shot.
+      test: ["CMD-SHELL", "celery -A django_starter_template inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
 
   beat:
     build:
@@ -113,7 +129,14 @@ services:
     environment:
       DJANGO_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-app_db}
+      REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/2
+      # Beat needs the result backend too. Dispatching a task opens a result
+      # consumer on it, so if this is missing beat inherits .env's localhost
+      # URL, finds nothing listening, and every scheduled run dies with
+      # "Retry limit exceeded while trying to reconnect to the Celery result
+      # store backend" — long after startup, so `up` looks fine.
+      CELERY_RESULT_BACKEND: redis://redis:6379/3
     volumes:
       - .:/app
     depends_on:
@@ -127,6 +150,16 @@ services:
     command: >
       celery -A django_starter_template beat --loglevel=info
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      --pidfile=/tmp/celerybeat.pid
+    healthcheck:
+      # Beat has no control channel to ping — it only ever produces. The
+      # pidfile it writes on startup is the available liveness signal:
+      # present, and naming a process that still answers signal 0.
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $$(cat /tmp/celerybeat.pid)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
 
   # --- Optional services -----------------------------------------------------
   # Uncomment as needed.

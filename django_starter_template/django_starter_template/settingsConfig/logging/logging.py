@@ -132,6 +132,16 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        # redis-py 8.x probes for `CLIENT MAINT_NOTIFICATIONS` on every new
+        # connection; servers before Redis 8.2 reject it and the client
+        # degrades gracefully, logging one DEBUG line per connection. Under a
+        # DEBUG root (development) that buries the Celery output entirely.
+        # INFO here keeps real connection errors, which log at WARNING+.
+        "redis": {
+            "handlers": ["console", "django_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "s3transfer": {
             "handlers": ["console", "django_file"],
             "level": "WARNING",

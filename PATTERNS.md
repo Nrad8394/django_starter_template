@@ -1074,3 +1074,52 @@ swapping token values only.
 The rule this round adds: **before publishing a template change, cold-start
 it** — fresh clone, `uv sync`, `manage.py check`, `pytest`, all with no
 services running. Every defect above would have been caught by that loop.
+
+## 22. Third harvest: the stack was healthy, the containers were not
+
+§21's rule was "cold-start the template before publishing." That catches
+import-time and startup defects. It does not catch the class of bug that only
+appears once the stack has been *up for a while* — which is where this round's
+findings all lived. `docker compose up` reported success on every one of them.
+
+**Not every service is a web server.** The image carries a single
+`HEALTHCHECK` that curls `/health/`. `worker` and `beat` inherit it, serve no
+HTTP, and sit `unhealthy` forever — one had a failing streak of 46 before
+anyone looked. An unhealthy container that nothing depends on is worse than a
+crashed one: it stays running, does its job, and permanently poisons the signal
+you would use to notice a real failure. Each non-HTTP service now overrides the
+check with one that matches what it actually is — `celery inspect ping` for the
+worker (which proves broker connectivity and a live main process in one
+round-trip), a pidfile plus `kill -0` for beat, which has no control channel to
+answer a ping.
+
+**Override every host-facing URL, not the ones a service obviously uses.**
+`.env` points `REDIS_URL`, `DATABASE_URL`, and both Celery URLs at
+`localhost`, which is correct for running on the host and means "this
+container" inside one. Each compose service overrides them — but `beat` was
+missing `CELERY_RESULT_BACKEND`, and `worker` and `beat` were both missing
+`REDIS_URL`. The beat gap is the instructive one: beat looks like a pure
+producer, so the result backend reads as the worker's concern. It isn't —
+dispatching a task opens a result consumer, so every scheduled run died with
+`SchedulingError: retry limit exceeded while trying to reconnect to the Celery
+result store backend`, ten minutes after a startup that looked clean. Enumerate
+the URLs, not the responsibilities.
+
+**Two assignments to one settings name.** `services/celery.py` set
+`CELERY_RESULT_BACKEND` twice in consecutive statements, the second discarding
+the first. Harmless while the env var is set — both read the same var — and a
+silent default change the moment it isn't. Grep any settings module for
+duplicate top-level assignments; a config file is the one place where the
+second write is never intentional.
+
+**Log noise is a defect.** redis-py 8.x probes `CLIENT MAINT_NOTIFICATIONS` on
+every new connection; servers before Redis 8.2 reject it, the client degrades
+gracefully, and one DEBUG line lands per connection. Under a DEBUG root that is
+several lines per second, and the Celery output you actually need is gone.
+Pinned the `redis` logger to INFO — real connection failures log at WARNING and
+still come through. A log you have stopped reading is not a log.
+
+The rule this round adds: **after cold-starting, leave it running and read the
+logs.** `docker compose ps` should show every service `healthy`, and a
+`--since` grep for tracebacks should come back empty — both checked minutes
+after startup, not seconds.
