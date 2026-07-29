@@ -159,7 +159,10 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
     "theme": "default",
-    "dark_mode_theme": None,
+    # `dark_mode_theme` was removed in Jazzmin 3 and warns on every request
+    # ("deprecated and ignored. Use default_theme_mode"). Every theme now
+    # supports both modes via `data-bs-theme`; "auto" follows the OS.
+    "default_theme_mode": "auto",
     "button_classes": {
         "primary": "btn-outline-primary",
         "secondary": "btn-outline-secondary",
